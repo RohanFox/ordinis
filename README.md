@@ -14,7 +14,6 @@
 Ordinis is a free, open-source desktop application for Windows security professionals, system administrators, and penetration testers. It runs CIS Benchmark, STIG, and custom security checks against the local machine or a remote host over WinRM, displays exactly **why each check failed**, and provides **multiple actionable remediation paths** (GPO, registry, PowerShell) for every finding.
 
 Unlike raw PowerShell scripts or CSV-based tools, Ordinis provides:
-- A modern dark WPF GUI with real-time scan progress
 - Per-finding failure context: *"Found '3' — must be ≥ 5"*
 - Three remediation methods per check (GPO path, registry, PS one-liner)
 - Backup-before-fix with one-click restore
@@ -191,38 +190,6 @@ Output: `publish/Ordinis.exe` — single file, no .NET installation required on 
 
 ---
 
-## Project Structure
-
-```
-Ordinis/
-├── Ordinis/                        # Main WPF application
-│   ├── Core/
-│   │   ├── Models/                 # Finding, AuditSession, ScanProfile, ScanTarget
-│   │   ├── Mvvm/                   # BaseViewModel, RelayCommand, Converters
-│   │   └── Services/               # PowerShellRunner, ReportGenerator, BackupManager
-│   ├── Modules/
-│   │   ├── Windows/                # CSV-based checks via HardeningKitty lists
-│   │   ├── AD/                     # Active Directory module
-│   │   ├── MSSQL/                  # SQL Server 22 CIS checks
-│   │   ├── Network/                # SMB, RDP, LLMNR, IPv6
-│   │   ├── NTLM/                   # NTLM hardening + Credential Guard
-│   │   ├── Kerberos/ (in AD)       # Kerberoasting, delegation, ticket defenses
-│   │   ├── LocalSecurity/          # BitLocker, LAPS, UAC, AppLocker
-│   │   ├── Logging/                # PS logging, audit policy, event log sizing
-│   │   ├── AttackSurface/          # Services, Defender ASR, Windows Update
-│   │   └── GPO/                    # LGPO export/apply, RSoP
-│   ├── ViewModels/                 # MVVM view models
-│   ├── Views/
-│   │   ├── Pages/                  # Dashboard, Findings, Backups, Reports, GPO, Settings
-│   │   ├── Dialogs/                # Fix confirmation, SQL connect, remote connect
-│   │   └── Controls/               # DonutChart, LoadingOverlay
-│   └── Data/
-│       └── FindingLists/           # HardeningKitty CSV finding lists (189 files)
-└── Ordinis.Tests/                  # xUnit test suite (49 tests)
-```
-
----
-
 ## WinRM Remote Scanning Notes
 
 | Method | Works Remotely | Notes |
@@ -255,7 +222,7 @@ Ordinis is designed for **authorized use only** — auditing systems you own or 
 
 ## License
 
-MIT License — Copyright © 2025 [RohanFox](https://github.com/RohanFox)
+MIT License — Copyright © 2026 [RohanFox](https://github.com/RohanFox)
 
 See [LICENSE](LICENSE) for full text.
 
