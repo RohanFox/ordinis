@@ -1,0 +1,29 @@
+<UserControl x:Class="Ordinis.Views.Controls.DonutChart"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="180" Height="180">
+    <Grid>
+        <Canvas Width="180" Height="180">
+            <!-- Background ring -->
+            <Path x:Name="BackgroundPath"
+                  Stroke="#2A2A3E" StrokeThickness="18"
+                  Fill="Transparent"/>
+            <!-- Progress ring -->
+            <Path x:Name="ProgressPath"
+                  Stroke="{DynamicResource PrimaryHueMidBrush}" StrokeThickness="18"
+                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                  Fill="Transparent"/>
+        </Canvas>
+        <!-- Center content -->
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBlock x:Name="PercentText"
+                       Text="0%"
+                       FontSize="32" FontWeight="Bold"
+                       Foreground="White"
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="Compliant"
+                       FontSize="11" Foreground="#9CA3AF"
+                       HorizontalAlignment="Center"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

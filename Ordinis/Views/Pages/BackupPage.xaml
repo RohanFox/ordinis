@@ -1,0 +1,125 @@
+<UserControl x:Class="Ordinis.Views.Pages.BackupPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             Background="{StaticResource OrdinisBackground}">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="Backups" FontSize="22" FontWeight="SemiBold" Foreground="White"/>
+            <TextBlock Text="Configuration snapshots taken before every fix. Restore any setting to its previous state."
+                       FontSize="13" Foreground="#6B7280" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Toolbar -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+            <Button Command="{Binding BackupAllCommand}"
+                    Style="{StaticResource MaterialDesignRaisedButton}"
+                    Background="{DynamicResource PrimaryHueMidBrush}" Padding="12,6"
+                    Margin="0,0,10,0">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="ContentSaveAll" Width="16" Height="16" Margin="0,0,6,0"/>
+                    <TextBlock Text="Backup All (Security Policy + Audit Policy)"/>
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding RefreshCommand}"
+                    Style="{StaticResource MaterialDesignOutlinedButton}" Padding="12,6"
+                    Margin="0,0,10,0">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="Refresh" Width="16" Height="16" Margin="0,0,6,0"/>
+                    <TextBlock Text="Refresh"/>
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding OpenFolderCommand}"
+                    Style="{StaticResource MaterialDesignFlatButton}" Foreground="#6B7280" Padding="12,6">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="FolderOpen" Width="16" Height="16" Margin="0,0,6,0"/>
+                    <TextBlock Text="Open Folder"/>
+                </StackPanel>
+            </Button>
+        </StackPanel>
+
+        <!-- Table + detail -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="300"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="{StaticResource OrdinisSurface}" CornerRadius="8">
+                <DataGrid ItemsSource="{Binding Backups}"
+                          SelectedItem="{Binding Selected}"
+                          AutoGenerateColumns="False" IsReadOnly="True"
+                          Background="Transparent" BorderThickness="0"
+                          GridLinesVisibility="Horizontal"
+                          CanUserResizeRows="False"
+                          Style="{StaticResource MaterialDesignDataGrid}"
+                          Foreground="#D1D5DB">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Type"    Binding="{Binding TypeLabel}" Width="120"/>
+                        <DataGridTextColumn Header="Finding" Binding="{Binding FindingName}" Width="*"/>
+                        <DataGridTextColumn Header="Machine" Binding="{Binding MachineName}" Width="120"/>
+                        <DataGridTextColumn Header="Created" Binding="{Binding CreatedAt, StringFormat='yyyy-MM-dd HH:mm'}" Width="140"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+
+            <!-- Detail + actions -->
+            <Border Grid.Column="2" Background="{StaticResource OrdinisSurface}" CornerRadius="8"
+                    Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel Margin="16">
+                    <TextBlock Text="Backup Detail" FontSize="14" FontWeight="SemiBold"
+                               Foreground="White" Margin="0,0,0,14"/>
+                    <Separator Background="#2A2A3E" Margin="0,0,0,14"/>
+                    <StackPanel Margin="0,0,0,14">
+                        <TextBlock Text="Finding" Foreground="#6B7280" FontSize="11" Margin="0,0,0,6"/>
+                        <TextBlock Text="{Binding Selected.FindingName}" Foreground="#D1D5DB"
+                                   FontSize="12" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,14">
+                        <TextBlock Text="Type" Foreground="#6B7280" FontSize="11" Margin="0,0,0,6"/>
+                        <TextBlock Text="{Binding Selected.TypeLabel}" Foreground="#D1D5DB" FontSize="12"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,14">
+                        <TextBlock Text="Value before fix" Foreground="#6B7280" FontSize="11" Margin="0,0,0,6"/>
+                        <TextBlock Text="{Binding Selected.OldValue}"
+                                   FontFamily="Consolas" Foreground="#F59E0B"
+                                   FontSize="12" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,14">
+                        <TextBlock Text="Backup file" Foreground="#6B7280" FontSize="11" Margin="0,0,0,6"/>
+                        <TextBlock Text="{Binding Selected.FilePath}"
+                                   Foreground="{DynamicResource PrimaryHueMidBrush}"
+                                   FontSize="11" TextWrapping="Wrap" FontFamily="Consolas"/>
+                    </StackPanel>
+                    <Separator Background="#2A2A3E" Margin="0,0,0,14"/>
+                    <StackPanel>
+                        <Button Command="{Binding RestoreCommand}"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="{StaticResource WarnAmber}" Foreground="Black"
+                                HorizontalAlignment="Stretch" Padding="0,8" Margin="0,0,0,8">
+                            Restore This Setting
+                        </Button>
+                        <Button Command="{Binding DeleteCommand}"
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                HorizontalAlignment="Stretch" Padding="0,8">
+                            Delete Backup
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Status -->
+        <TextBlock Grid.Row="3" Text="{Binding StatusMessage}"
+                   Foreground="#6B7280" FontSize="12" Margin="0,10,0,0"
+                   Visibility="{Binding StatusMessage, Converter={StaticResource NotEmptyToVisibilityConverter}}"/>
+    </Grid>
+</UserControl>

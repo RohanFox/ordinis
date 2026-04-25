@@ -1,0 +1,150 @@
+<UserControl x:Class="Ordinis.Views.Pages.GpoPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             Background="{StaticResource OrdinisBackground}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24">
+            <StackPanel Margin="0,0,0,20">
+                <TextBlock Text="GPO Manager" FontSize="22" FontWeight="SemiBold" Foreground="White"/>
+                <TextBlock Text="Export findings as LGPO templates, apply group policy, or generate RSoP reports."
+                           FontSize="13" Foreground="#6B7280" Margin="0,4,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+
+            <!-- Status -->
+            <Border Background="#1A2035" CornerRadius="6" Padding="14,10" Margin="0,0,0,20"
+                    Visibility="{Binding StatusMessage, Converter={StaticResource NotEmptyToVisibilityConverter}}">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="InformationOutline" Foreground="{StaticResource InfoBlue}"
+                                             VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="#93C5FD"
+                               FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Action cards row -->
+            <WrapPanel Orientation="Horizontal" Margin="0,0,0,20">
+
+                <!-- Export as LGPO -->
+                <Border Style="{StaticResource CardStyle}" Width="280" Margin="0,0,16,16">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <materialDesign:PackIcon Kind="Export" Width="22" Height="22"
+                                                     Foreground="{DynamicResource PrimaryHueMidBrush}"
+                                                     Margin="0,0,10,0"/>
+                            <TextBlock Text="Export as LGPO" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
+                        </StackPanel>
+                        <TextBlock Text="Convert failed findings into an LGPO-compatible .txt file that can be applied to any Windows machine."
+                                   Foreground="#6B7280" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                        <Button Command="{Binding ExportLgpoCommand}"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="{DynamicResource PrimaryHueMidBrush}"
+                                HorizontalAlignment="Left" Padding="12,6">
+                            Export LGPO File
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <!-- Apply LGPO -->
+                <Border Style="{StaticResource CardStyle}" Width="280" Margin="0,0,16,16">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <materialDesign:PackIcon Kind="Upload" Width="22" Height="22"
+                                                     Foreground="{StaticResource WarnAmber}"
+                                                     Margin="0,0,10,0"/>
+                            <TextBlock Text="Apply LGPO File" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
+                        </StackPanel>
+                        <TextBlock Text="Apply an existing LGPO .txt file to this machine using LGPO.exe (from Microsoft Security Compliance Toolkit)."
+                                   Foreground="#6B7280" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                        <TextBox Text="{Binding LgpoFilePath}" Margin="0,0,0,8"
+                                 materialDesign:HintAssist.Hint="Path to LGPO .txt file…"
+                                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                 FontSize="11"/>
+                        <Button Command="{Binding ApplyLgpoCommand}"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="{StaticResource WarnAmber}"
+                                Foreground="Black"
+                                HorizontalAlignment="Left" Padding="12,6">
+                            Apply to Machine
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <!-- GPO Report -->
+                <Border Style="{StaticResource CardStyle}" Width="280" Margin="0,0,16,16">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <materialDesign:PackIcon Kind="FileChart" Width="22" Height="22"
+                                                     Foreground="{StaticResource PassGreen}"
+                                                     Margin="0,0,10,0"/>
+                            <TextBlock Text="GPO Report (RSoP)" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
+                        </StackPanel>
+                        <TextBlock Text="Generate an HTML report of all Group Policy settings currently applied to this machine (uses gpresult /H)."
+                                   Foreground="#6B7280" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                        <Button Command="{Binding GenerateReportCommand}"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="{StaticResource PassGreen}"
+                                Foreground="Black"
+                                HorizontalAlignment="Left" Padding="12,6">
+                            Generate &amp; Open
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <!-- List Applied GPOs -->
+                <Border Style="{StaticResource CardStyle}" Width="280" Margin="0,0,16,16">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <materialDesign:PackIcon Kind="FormatListBulleted" Width="22" Height="22"
+                                                     Foreground="{StaticResource InfoBlue}"
+                                                     Margin="0,0,10,0"/>
+                            <TextBlock Text="Applied GPOs" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
+                        </StackPanel>
+                        <TextBlock Text="List all Group Policy Objects currently applied to this machine."
+                                   Foreground="#6B7280" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                        <Button Command="{Binding LoadGposCommand}"
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                HorizontalAlignment="Left" Padding="12,6">
+                            Refresh List
+                        </Button>
+                    </StackPanel>
+                </Border>
+            </WrapPanel>
+
+            <!-- Applied GPOs list -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20"
+                    Visibility="{Binding AppliedGpos.Count, Converter={StaticResource IntToVisConverter}}">
+                <StackPanel>
+                    <TextBlock Text="Applied Group Policy Objects" FontSize="14"
+                               FontWeight="SemiBold" Foreground="White" Margin="0,0,0,10"/>
+                    <DataGrid ItemsSource="{Binding AppliedGpos}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              Background="Transparent"
+                              BorderThickness="0"
+                              CanUserResizeRows="False"
+                              Style="{StaticResource MaterialDesignDataGrid}"
+                              Foreground="#D1D5DB">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="GPO Name" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="GUID"     Binding="{Binding Guid}" Width="280"
+                                                ElementStyle="{StaticResource MaterialDesignDataGridTextColumnStyle}"/>
+                            <DataGridTextColumn Header="Status"   Binding="{Binding Status}" Width="100"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+
+            <!-- LGPO path display -->
+            <Border Style="{StaticResource CardStyle}"
+                    Visibility="{Binding LgpoFilePath, Converter={StaticResource NotEmptyToVisibilityConverter}}">
+                <StackPanel>
+                    <TextBlock Text="Last Exported LGPO File" Foreground="#6B7280" FontSize="12" Margin="0,0,0,6"/>
+                    <TextBlock Text="{Binding LgpoFilePath}" FontFamily="Consolas"
+                               FontSize="12" Foreground="{DynamicResource PrimaryHueMidBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

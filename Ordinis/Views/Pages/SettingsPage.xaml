@@ -1,0 +1,98 @@
+<UserControl x:Class="Ordinis.Views.Pages.SettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             Background="{StaticResource OrdinisBackground}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24" MaxWidth="680">
+            <TextBlock Text="Settings" FontSize="22" FontWeight="SemiBold"
+                       Foreground="White" Margin="0,0,0,20"/>
+
+            <!-- SQL Server connection -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                        <materialDesign:PackIcon Kind="Database" Width="20" Height="20"
+                                                 Foreground="{DynamicResource PrimaryHueMidBrush}"
+                                                 Margin="0,0,10,0"/>
+                        <TextBlock Text="SQL Server Connection" FontSize="15"
+                                   FontWeight="SemiBold" Foreground="White"/>
+                    </StackPanel>
+                    <TextBox Text="{Binding SqlServer}" Width="400" HorizontalAlignment="Left"
+                             materialDesign:HintAssist.Hint="Server name or IP (e.g. localhost\SQLEXPRESS)"
+                             Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                             Margin="0,0,0,12"/>
+
+                    <CheckBox Content="Use Windows Authentication (Integrated Security)"
+                              IsChecked="{Binding SqlWindowsAuth}"
+                              Foreground="#D1D5DB" Margin="0,0,0,12"/>
+
+                    <StackPanel Margin="0,0,0,12"
+                                Visibility="{Binding SqlAuthVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBox Text="{Binding SqlUsername}" Width="300" HorizontalAlignment="Left"
+                                 materialDesign:HintAssist.Hint="SQL username"
+                                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                 Margin="0,0,0,12"/>
+                        <PasswordBox materialDesign:HintAssist.Hint="SQL password"
+                                     Width="300" HorizontalAlignment="Left"
+                                     Style="{StaticResource MaterialDesignOutlinedPasswordBox}"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Command="{Binding TestSqlCommand}"
+                                Style="{StaticResource MaterialDesignOutlinedButton}"
+                                Padding="12,6" Margin="0,0,12,0">
+                            Test Connection
+                        </Button>
+                        <TextBlock Text="{Binding SqlTestResult}"
+                                   VerticalAlignment="Center" Foreground="#9CA3AF" FontSize="12"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Remote target -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <materialDesign:PackIcon Kind="LanConnect" Width="20" Height="20"
+                                                 Foreground="{StaticResource InfoBlue}"
+                                                 Margin="0,0,10,0"/>
+                        <TextBlock Text="Remote Target (WinRM)" FontSize="15"
+                                   FontWeight="SemiBold" Foreground="White"/>
+                    </StackPanel>
+                    <TextBlock Text="Configure a remote machine to audit via WinRM. Requires PowerShell Remoting to be enabled on the target."
+                               Foreground="#6B7280" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <TextBox materialDesign:HintAssist.Hint="Remote hostname or IP"
+                             Width="300" HorizontalAlignment="Left"
+                             Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                             Margin="0,0,0,12"/>
+                    <TextBox materialDesign:HintAssist.Hint="Domain\Username"
+                             Width="300" HorizontalAlignment="Left"
+                             Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                             Margin="0,0,0,12"/>
+                    <PasswordBox materialDesign:HintAssist.Hint="Password"
+                                 Width="300" HorizontalAlignment="Left"
+                                 Style="{StaticResource MaterialDesignOutlinedPasswordBox}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Finding lists path -->
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <materialDesign:PackIcon Kind="FolderOpen" Width="20" Height="20"
+                                                 Foreground="{StaticResource WarnAmber}"
+                                                 Margin="0,0,10,0"/>
+                        <TextBlock Text="Finding Lists Directory" FontSize="15"
+                                   FontWeight="SemiBold" Foreground="White"/>
+                    </StackPanel>
+                    <TextBlock Text="Path to the HardeningKitty CSV finding lists. By default the Data\FindingLists folder next to Ordinis.exe."
+                               Foreground="#6B7280" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <TextBox Text="{Binding FindingListsPath}" Width="500" HorizontalAlignment="Left"
+                             Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                             FontFamily="Consolas" FontSize="12"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

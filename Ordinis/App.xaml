@@ -1,0 +1,73 @@
+<Application x:Class="Ordinis.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:mvvm="clr-namespace:Ordinis.Core.Mvvm"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <materialDesign:BundledTheme BaseTheme="Dark"
+                                             PrimaryColor="DeepPurple"
+                                             SecondaryColor="Teal" />
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign2.Defaults.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Global converters -->
+            <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+            <mvvm:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+            <mvvm:StringNotEmptyToVisibilityConverter x:Key="NotEmptyToVisibilityConverter"/>
+            <mvvm:IntGreaterThanZeroToVisibilityConverter x:Key="IntToVisConverter"/>
+
+            <!-- Brand colours -->
+            <SolidColorBrush x:Key="OrdinisSidebar"     Color="#12131F"/>
+            <SolidColorBrush x:Key="OrdinisBackground"  Color="#1A1B2E"/>
+            <SolidColorBrush x:Key="OrdinisSurface"     Color="#22243A"/>
+            <SolidColorBrush x:Key="OrdinisTopBar"      Color="#0F1018"/>
+            <SolidColorBrush x:Key="PassGreen"          Color="#22C55E"/>
+            <SolidColorBrush x:Key="FailRed"            Color="#EF4444"/>
+            <SolidColorBrush x:Key="WarnAmber"          Color="#F59E0B"/>
+            <SolidColorBrush x:Key="InfoBlue"           Color="#3B82F6"/>
+            <SolidColorBrush x:Key="CriticalPurple"     Color="#A855F7"/>
+            <SolidColorBrush x:Key="MutedText"          Color="#6B7280"/>
+
+            <!-- Severity tag styles -->
+            <Style x:Key="SeverityTagStyle" TargetType="Border">
+                <Setter Property="CornerRadius" Value="4"/>
+                <Setter Property="Padding" Value="6,2"/>
+                <Setter Property="HorizontalAlignment" Value="Left"/>
+            </Style>
+
+            <!-- Card style -->
+            <Style x:Key="CardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource OrdinisSurface}"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="Padding" Value="16"/>
+            </Style>
+
+            <!-- Nav button style -->
+            <Style x:Key="NavButtonStyle" TargetType="Button" BasedOn="{StaticResource MaterialDesignFlatButton}">
+                <Setter Property="Height" Value="48"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                <Setter Property="Padding" Value="16,0"/>
+                <Setter Property="Foreground" Value="#9CA3AF"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="#1F2235"/>
+                        <Setter Property="Foreground" Value="White"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- Active nav button -->
+            <Style x:Key="NavButtonActiveStyle" TargetType="Button" BasedOn="{StaticResource NavButtonStyle}">
+                <Setter Property="Background" Value="#2D1B69"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderThickness" Value="3,0,0,0"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource PrimaryHueMidBrush}"/>
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

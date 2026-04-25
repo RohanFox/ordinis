@@ -1,0 +1,108 @@
+<Window x:Class="Ordinis.Views.Dialogs.ConnectSqlDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        Title="Connect to SQL Server — Ordinis"
+        Width="440"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        Background="#1A1B2E"
+        TextElement.Foreground="White"
+        FontFamily="Segoe UI"
+        Style="{StaticResource MaterialDesignWindow}">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#6B7280"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+    </Window.Resources>
+
+    <StackPanel Margin="28,24,28,20">
+
+        <!-- Header -->
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+            <materialDesign:PackIcon Kind="Database" Width="24" Height="24"
+                                      Foreground="{DynamicResource PrimaryHueMidBrush}"
+                                      VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <TextBlock Text="SQL Server Connection" FontSize="18" FontWeight="SemiBold"
+                       VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- Server -->
+        <TextBlock Text="Server / Instance" Style="{StaticResource FieldLabel}"/>
+        <TextBox x:Name="TxtServer"
+                 materialDesign:HintAssist.Hint="e.g. localhost\MSSQLSERVER or 192.168.1.10"
+                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                 Margin="0,0,0,14"/>
+
+        <!-- Auth mode toggle -->
+        <TextBlock Text="Authentication" Style="{StaticResource FieldLabel}"/>
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+            <RadioButton x:Name="RbWindowsAuth"
+                         Content="Windows Authentication"
+                         IsChecked="True"
+                         Foreground="#D1D5DB"
+                         Checked="AuthMode_Changed"/>
+            <RadioButton x:Name="RbSqlAuth"
+                         Content="SQL Server Authentication"
+                         Foreground="#D1D5DB"
+                         Checked="AuthMode_Changed"/>
+        </StackPanel>
+
+        <!-- SQL credentials (shown only for SQL auth) -->
+        <StackPanel x:Name="PanelSqlCreds"
+                    Visibility="Collapsed"
+                    Margin="0,0,0,14">
+            <TextBlock Text="Username" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="TxtUsername"
+                     materialDesign:HintAssist.Hint="SQL login name"
+                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                     Margin="0,0,0,10"/>
+
+            <TextBlock Text="Password" Style="{StaticResource FieldLabel}"/>
+            <PasswordBox x:Name="PbPassword"
+                         materialDesign:HintAssist.Hint="Password"
+                         Style="{StaticResource MaterialDesignOutlinedPasswordBox}"/>
+        </StackPanel>
+
+        <!-- Test result -->
+        <TextBlock x:Name="TxtTestResult"
+                   Text="" FontSize="12" Margin="0,0,0,16"
+                   TextWrapping="Wrap" Visibility="Collapsed"/>
+
+        <!-- Buttons -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0" Content="Cancel" IsCancel="True"
+                    Click="Cancel_Click"
+                    Style="{StaticResource MaterialDesignFlatButton}"
+                    Foreground="#6B7280"
+                    HorizontalAlignment="Left"/>
+
+            <Button Grid.Column="1" Content="Test Connection"
+                    Click="Test_Click"
+                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                    Padding="14,6"/>
+
+            <Button Grid.Column="3" Content="Connect"
+                    IsDefault="True"
+                    Click="Connect_Click"
+                    Style="{StaticResource MaterialDesignRaisedButton}"
+                    Background="{DynamicResource PrimaryHueMidBrush}"
+                    Padding="20,8"/>
+        </Grid>
+
+    </StackPanel>
+</Window>

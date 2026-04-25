@@ -1,0 +1,119 @@
+<Window x:Class="Ordinis.Views.Dialogs.RemoteConnectDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        Title="Remote Target — Ordinis"
+        Width="440"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        Background="#1A1B2E"
+        TextElement.Foreground="White"
+        FontFamily="Segoe UI"
+        Style="{StaticResource MaterialDesignWindow}">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#6B7280"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+    </Window.Resources>
+
+    <StackPanel Margin="28,24,28,20">
+
+        <!-- Header -->
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+            <materialDesign:PackIcon Kind="MonitorMultiple" Width="24" Height="24"
+                                     Foreground="{DynamicResource PrimaryHueMidBrush}"
+                                     VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <TextBlock Text="Remote Target (WinRM)" FontSize="18" FontWeight="SemiBold"
+                       VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- Info banner -->
+        <Border Background="#1A2535" CornerRadius="6" Padding="12,10" Margin="0,0,0,18">
+            <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="InformationOutline" Width="16" Height="16"
+                                         Foreground="#3B82F6" VerticalAlignment="Top" Margin="0,1,8,0"/>
+                <TextBlock Foreground="#93C5FD" FontSize="11" TextWrapping="Wrap" MaxWidth="340">
+                    WinRM must be enabled on the target machine. Run
+                    <Run FontFamily="Consolas" Text="Enable-PSRemoting -Force"/>
+                    as Administrator on the remote host.
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <!-- Hostname -->
+        <TextBlock Text="Hostname or IP address" Style="{StaticResource FieldLabel}"/>
+        <TextBox x:Name="TxtHostname"
+                 materialDesign:HintAssist.Hint="e.g. 192.168.1.50 or SERVER01"
+                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                 Margin="0,0,0,14"/>
+
+        <!-- Port -->
+        <TextBlock Text="WinRM port (default: 5985)" Style="{StaticResource FieldLabel}"/>
+        <TextBox x:Name="TxtPort" Text="5985"
+                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                 Margin="0,0,0,14"/>
+
+        <!-- HTTPS toggle -->
+        <CheckBox x:Name="ChkHttps"
+                  Content="Use HTTPS (port 5986)"
+                  Foreground="#D1D5DB"
+                  Margin="0,0,0,14"
+                  Checked="Https_Changed"
+                  Unchecked="Https_Changed"/>
+
+        <!-- Username -->
+        <TextBlock Text="Username (DOMAIN\user or .\\localuser)" Style="{StaticResource FieldLabel}"/>
+        <TextBox x:Name="TxtUsername"
+                 materialDesign:HintAssist.Hint="DOMAIN\Administrator"
+                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                 Margin="0,0,0,14"/>
+
+        <!-- Password -->
+        <TextBlock Text="Password" Style="{StaticResource FieldLabel}"/>
+        <PasswordBox x:Name="PbPassword"
+                     materialDesign:HintAssist.Hint="Password"
+                     Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
+                     Margin="0,0,0,20"/>
+
+        <!-- Test result -->
+        <TextBlock x:Name="TxtTestResult"
+                   Text="" FontSize="12" TextWrapping="Wrap"
+                   Margin="0,0,0,12" Visibility="Collapsed"/>
+
+        <!-- Buttons -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0" Content="Use Local Machine"
+                    Click="UseLocal_Click"
+                    Style="{StaticResource MaterialDesignFlatButton}"
+                    Foreground="#6B7280"
+                    HorizontalAlignment="Left"/>
+
+            <Button Grid.Column="1" Content="Test WinRM"
+                    Click="Test_Click"
+                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                    Padding="14,6"/>
+
+            <Button Grid.Column="3" Content="Connect"
+                    IsDefault="True"
+                    Click="Connect_Click"
+                    Style="{StaticResource MaterialDesignRaisedButton}"
+                    Background="{DynamicResource PrimaryHueMidBrush}"
+                    Padding="20,8"/>
+        </Grid>
+
+    </StackPanel>
+</Window>
