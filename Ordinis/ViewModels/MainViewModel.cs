@@ -158,10 +158,16 @@ public class MainViewModel : BaseViewModel
         _cts       = new CancellationTokenSource();
         IsLoading  = true;
         Progress   = 0;
-        StatusText = "Loading finding lists…";
+        StatusText = "Detecting OS profile…";
 
         try
         {
+            var profile   = SelectedProfile;
+            var ct        = _cts.Token;
+
+            var osProfile = await new OsDetector(PsRunner).DetectAsync(ct);
+            StatusText = $"Detected: {osProfile.Caption} — loading finding lists…";
+
             var session = new AuditSession
             {
                 Target      = Target,
@@ -171,17 +177,17 @@ public class MainViewModel : BaseViewModel
             // Load all findings on a background thread — GetFindingsAsync for most modules
             // returns Task.FromResult (synchronous), so without Task.Run this would block
             // the UI thread and freeze animations.
-            var profile = SelectedProfile;
-            var ct      = _cts.Token;
             await Task.Run(async () =>
             {
-                session.Findings.AddRange(await new WindowsModule(CsvLoader, PsRunner).GetFindingsAsync(profile, ct));
+                session.Findings.AddRange(await new WindowsModule(CsvLoader, PsRunner, osProfile).GetFindingsAsync(profile, ct));
                 session.Findings.AddRange(await new NetworkModule(PsRunner).GetFindingsAsync(profile, ct));
 
-                if (profile.IncludeMSSQL && Target.HasSqlConnection)
+                // SQL Server module — only when the service is actually present on this machine.
+                if (profile.IncludeMSSQL && (Target.HasSqlConnection || osProfile.HasSqlServer))
                     session.Findings.AddRange(await SqlMod.GetFindingsAsync(profile, ct));
 
-                if (profile.IncludeAD)
+                // AD module — only when domain-joined and RSAT/AD PS module is available.
+                if (profile.IncludeAD && osProfile.IsDomainJoined && osProfile.HasRsat)
                     session.Findings.AddRange(await new AdModule(PsRunner).GetFindingsAsync(profile, ct));
 
                 session.Findings.AddRange(await new NtlmModule(PsRunner).GetFindingsAsync(profile, ct));

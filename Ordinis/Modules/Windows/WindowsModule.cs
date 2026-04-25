@@ -12,22 +12,29 @@ public class WindowsModule : IModule
 {
     private readonly CsvFindingLoader _loader;
     private readonly PowerShellRunner _ps;
+    private readonly OsProfile?       _osProfile;
 
     public FindingModule Module      => FindingModule.Windows;
     public string DisplayName        => "Windows OS";
     public string Description        => "Registry, services, firewall, Defender, policies and OS hardening checks";
 
-    public WindowsModule(CsvFindingLoader loader, PowerShellRunner ps)
+    public WindowsModule(CsvFindingLoader loader, PowerShellRunner ps, OsProfile? osProfile = null)
     {
-        _loader = loader;
-        _ps     = ps;
+        _loader    = loader;
+        _ps        = ps;
+        _osProfile = osProfile;
     }
 
     public Task<List<Finding>> GetFindingsAsync(ScanProfile profile, CancellationToken ct = default)
     {
-        var files    = _loader.GetAvailableLists();
-        var filtered = files.Where(f => MatchesProfile(f, profile.Name)).ToList();
-        var raw      = filtered.Count > 0 ? _loader.LoadFromFiles(filtered) : _loader.LoadAll();
+        var files     = _loader.GetAvailableLists();
+        // Filter by benchmark profile first; fall back to all if nothing matches.
+        var byProfile = files.Where(f => MatchesProfile(f, profile.Name)).ToList();
+        var source    = byProfile.Count > 0 ? byProfile : files;
+        // Then narrow by detected OS type so server CSVs are skipped on workstations and vice-versa.
+        var filtered  = source.Where(f => MatchesOs(f, _osProfile)).ToList();
+        if (filtered.Count == 0) filtered = source;
+        var raw = _loader.LoadFromFiles(filtered);
 
         // Multiple benchmark CSVs contain the same checks (same registry key appears in
         // CIS Win10, CIS Win11, CIS Server 2019, etc.). Deduplicate by the actual check
@@ -244,5 +251,19 @@ public class WindowsModule : IModule
             var p when p.Contains("microsoft")    => f.Contains("microsoft") || f.Contains("msft"),
             _                                     => true
         };
+    }
+
+    private static bool MatchesOs(string fileName, OsProfile? os)
+    {
+        if (os is null || os.WindowsVersion == "unknown") return true;
+        string f = fileName.ToLowerInvariant();
+
+        bool isServerCsv      = f.Contains("_server_");
+        bool isWorkstationCsv = f.Contains("windows_10") || f.Contains("windows_11");
+
+        // Exclude server-specific CSVs when running on a workstation and vice-versa.
+        if (os.IsWorkstation && isServerCsv)      return false;
+        if (!os.IsWorkstation && isWorkstationCsv) return false;
+        return true;
     }
 }
