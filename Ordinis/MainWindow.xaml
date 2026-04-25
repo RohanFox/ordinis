@@ -154,10 +154,22 @@
                         <Button Command="{Binding RunScanCommand}"
                                 Style="{StaticResource MaterialDesignRaisedButton}"
                                 Background="{DynamicResource PrimaryHueMidBrush}"
-                                Padding="16,8" Margin="0,0,10,0">
+                                Padding="16,8" Margin="0,0,10,0"
+                                Visibility="{Binding IsNotLoading, Converter={StaticResource BoolToVisibilityConverter}}">
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="PlayCircle" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <TextBlock Text="Run Audit" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Command="{Binding CancelScanCommand}"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="#DC2626"
+                                Padding="16,8" Margin="0,0,10,0"
+                                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Stop" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="Cancel" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
 

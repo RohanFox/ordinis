@@ -72,8 +72,15 @@ public class MainViewModel : BaseViewModel
     public bool IsLoading
     {
         get => _isLoading;
-        set { SetField(ref _isLoading, value); OnPropertyChanged(nameof(CanScan)); }
+        set
+        {
+            SetField(ref _isLoading, value);
+            OnPropertyChanged(nameof(CanScan));
+            OnPropertyChanged(nameof(IsNotLoading));
+        }
     }
+
+    public bool IsNotLoading => !IsLoading;
 
     private string _statusText = "Ready";
     public string StatusText
@@ -95,6 +102,7 @@ public class MainViewModel : BaseViewModel
     // ── Commands ─────────────────────────────────────────────────────────────────
     public AsyncRelayCommand RunScanCommand      { get; }
     public AsyncRelayCommand FixSelectedCommand  { get; }
+    public RelayCommand      CancelScanCommand   { get; }
     public RelayCommand      NavigateDashboard   { get; }
     public RelayCommand      NavigateFindings    { get; }
     public RelayCommand      NavigateGpo         { get; }
@@ -135,6 +143,7 @@ public class MainViewModel : BaseViewModel
 
         RunScanCommand     = new AsyncRelayCommand(RunScanAsync,  () => CanScan);
         FixSelectedCommand = new AsyncRelayCommand(FixSelectedAsync, () => HasResults && !IsLoading);
+        CancelScanCommand  = new RelayCommand(CancelScan, () => IsLoading);
 
         NavigateDashboard = new RelayCommand(() => CurrentPage = Dashboard);
         NavigateFindings  = new RelayCommand(() => CurrentPage = Findings);
@@ -146,82 +155,72 @@ public class MainViewModel : BaseViewModel
 
     private async Task RunScanAsync()
     {
-        _cts     = new CancellationTokenSource();
-        IsLoading = true;
-        Progress  = 0;
+        _cts       = new CancellationTokenSource();
+        IsLoading  = true;
+        Progress   = 0;
         StatusText = "Loading finding lists…";
 
         try
         {
-            Session = new AuditSession
+            var session = new AuditSession
             {
                 Target      = Target,
                 ProfileName = SelectedProfile.Name
             };
 
-            // Load Windows findings from CSV lists
-            var winModule   = new WindowsModule(CsvLoader, PsRunner);
-            var winFindings = await winModule.GetFindingsAsync(SelectedProfile, _cts.Token);
-            Session.Findings.AddRange(winFindings);
-
-            // Load Network/IPv6 findings
-            var netModule   = new NetworkModule(PsRunner);
-            var netFindings = await netModule.GetFindingsAsync(SelectedProfile, _cts.Token);
-            Session.Findings.AddRange(netFindings);
-
-            // SQL Server if configured
-            if (SelectedProfile.IncludeMSSQL && Target.HasSqlConnection)
-                Session.Findings.AddRange(await SqlMod.GetFindingsAsync(SelectedProfile, _cts.Token));
-
-            // AD + Kerberos attack surface
-            if (SelectedProfile.IncludeAD)
+            // Load all findings on a background thread — GetFindingsAsync for most modules
+            // returns Task.FromResult (synchronous), so without Task.Run this would block
+            // the UI thread and freeze animations.
+            var profile = SelectedProfile;
+            var ct      = _cts.Token;
+            await Task.Run(async () =>
             {
-                var adModule = new AdModule(PsRunner);
-                Session.Findings.AddRange(await adModule.GetFindingsAsync(SelectedProfile, _cts.Token));
-            }
+                session.Findings.AddRange(await new WindowsModule(CsvLoader, PsRunner).GetFindingsAsync(profile, ct));
+                session.Findings.AddRange(await new NetworkModule(PsRunner).GetFindingsAsync(profile, ct));
 
-            // NTLM hardening + Credential Guard (always included — OS-level registry checks)
-            var ntlmModule = new NtlmModule(PsRunner);
-            Session.Findings.AddRange(await ntlmModule.GetFindingsAsync(SelectedProfile, _cts.Token));
+                if (profile.IncludeMSSQL && Target.HasSqlConnection)
+                    session.Findings.AddRange(await SqlMod.GetFindingsAsync(profile, ct));
 
-            // Local security: BitLocker, LAPS, UAC, AppLocker, WMI persistence
-            var localSecModule = new LocalSecurityModule(PsRunner);
-            Session.Findings.AddRange(await localSecModule.GetFindingsAsync(SelectedProfile, _cts.Token));
+                if (profile.IncludeAD)
+                    session.Findings.AddRange(await new AdModule(PsRunner).GetFindingsAsync(profile, ct));
 
-            // Logging & audit policy: PS Script Block, Advanced Audit, event log sizing
-            var loggingModule = new LoggingModule(PsRunner);
-            Session.Findings.AddRange(await loggingModule.GetFindingsAsync(SelectedProfile, _cts.Token));
+                session.Findings.AddRange(await new NtlmModule(PsRunner).GetFindingsAsync(profile, ct));
+                session.Findings.AddRange(await new LocalSecurityModule(PsRunner).GetFindingsAsync(profile, ct));
+                session.Findings.AddRange(await new LoggingModule(PsRunner).GetFindingsAsync(profile, ct));
+                session.Findings.AddRange(await new AttackSurfaceModule(PsRunner).GetFindingsAsync(profile, ct));
+            }, ct);
 
-            // Attack surface: unnecessary services, Defender ASR, Least Privilege, Windows Update
-            var asrModule = new AttackSurfaceModule(PsRunner);
-            Session.Findings.AddRange(await asrModule.GetFindingsAsync(SelectedProfile, _cts.Token));
+            Session     = session;
+            StatusText  = $"Running audit — 0 / {Session.Findings.Count}";
 
-            StatusText = $"Running audit — 0 / {Session.Findings.Count}";
-
+            // Progress<T> captures the current SynchronizationContext (UI thread), so
+            // the callback runs on the UI thread — no Dispatcher.Invoke needed inside.
+            // Throttle to every 50 findings so we don't flood the message queue with
+            // ObservableCollection rebuilds.
+            int reported = 0;
             var progress = new Progress<(int current, int total, string message)>(p =>
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                Progress   = p.total > 0 ? (double)p.current / p.total * 100 : 0;
+                StatusText = $"[{p.current}/{p.total}] {p.message}";
+
+                if (++reported % 50 == 0 || p.current == p.total)
                 {
-                    Progress   = p.total > 0 ? (double)p.current / p.total * 100 : 0;
-                    StatusText = $"[{p.current}/{p.total}] {p.message}";
                     OnPropertyChanged(nameof(Session));
                     Dashboard.Refresh();
-                    Findings.Refresh();
-                });
+                }
             });
 
-            await Audit.RunAuditAsync(Session, progress, _cts.Token);
+            // Run the audit loop on a thread-pool thread so registry reads and PS calls
+            // don't block the UI message pump (keeps the loading GIF animating).
+            await Task.Run(() => Audit.RunAuditAsync(Session, progress, ct), ct);
 
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                OnPropertyChanged(nameof(Session));
-                OnPropertyChanged(nameof(HasResults));
-                Dashboard.Refresh();
-                Findings.Refresh();
-                StatusText = $"Scan complete — {Session.PassCount} passed, {Session.FailCount} failed";
-                Progress   = 100;
-                CurrentPage = Dashboard;
-            });
+            OnPropertyChanged(nameof(Session));
+            OnPropertyChanged(nameof(HasResults));
+            Dashboard.Refresh();
+            Findings.Refresh();
+            StatusText  = $"Scan complete — {Session.PassCount} passed, {Session.FailCount} failed";
+            Progress    = 100;
+            CurrentPage = Dashboard;
         }
         catch (OperationCanceledException)
         {
@@ -255,7 +254,7 @@ public class MainViewModel : BaseViewModel
 
         Dashboard.Refresh();
         Findings.Refresh();
-        StatusText = $"Batch fix complete.";
+        StatusText = "Batch fix complete.";
     }
 
     public void CancelScan() => _cts?.Cancel();

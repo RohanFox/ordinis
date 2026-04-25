@@ -25,11 +25,30 @@ public class WindowsModule : IModule
 
     public Task<List<Finding>> GetFindingsAsync(ScanProfile profile, CancellationToken ct = default)
     {
-        var files = _loader.GetAvailableLists();
-        // Filter based on profile name
+        var files    = _loader.GetAvailableLists();
         var filtered = files.Where(f => MatchesProfile(f, profile.Name)).ToList();
-        var findings  = filtered.Count > 0 ? _loader.LoadFromFiles(filtered) : _loader.LoadAll();
-        return Task.FromResult(findings);
+        var raw      = filtered.Count > 0 ? _loader.LoadFromFiles(filtered) : _loader.LoadAll();
+
+        // Multiple benchmark CSVs contain the same checks (same registry key appears in
+        // CIS Win10, CIS Win11, CIS Server 2019, etc.). Deduplicate by the actual check
+        // being performed so each system setting is audited exactly once.
+        var seen    = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var deduped = new List<Finding>(raw.Count);
+        foreach (var f in raw)
+        {
+            var key = f.Method.ToLowerInvariant() switch
+            {
+                "registry"      => $"reg\x1f{f.CheckParams.GetValueOrDefault("RegistryPath")}\x1f{f.CheckParams.GetValueOrDefault("RegistryItem")}\x1f{f.ExpectedValue}",
+                "secedit"       => $"sec\x1f{f.CheckParams.GetValueOrDefault("MethodArgument")}\x1f{f.ExpectedValue}",
+                "auditpol"      => $"aud\x1f{f.CheckParams.GetValueOrDefault("MethodArgument")}\x1f{f.ExpectedValue}",
+                "accountpolicy" => $"acct\x1f{f.CheckParams.GetValueOrDefault("MethodArgument")}\x1f{f.ExpectedValue}",
+                "service"       => $"svc\x1f{f.CheckParams.GetValueOrDefault("ServiceName")}\x1f{f.ExpectedValue}",
+                _               => $"{f.Method}\x1f{f.Name}\x1f{f.ExpectedValue}"
+            };
+            if (seen.Add(key))
+                deduped.Add(f);
+        }
+        return Task.FromResult(deduped);
     }
 
     public async Task AuditFindingAsync(Finding finding, ScanTarget target, CancellationToken ct = default)
