@@ -1,3 +1,5 @@
+using Microsoft.Data.SqlClient;
+
 namespace Ordinis.Core.Models;
 
 public enum TargetType { Local, Remote }
@@ -29,10 +31,22 @@ public class ScanTarget
     {
         get
         {
-            string server = string.IsNullOrWhiteSpace(SqlServer) ? "localhost" : SqlServer;
+            var builder = new SqlConnectionStringBuilder
+            {
+                DataSource             = string.IsNullOrWhiteSpace(SqlServer) ? "localhost" : SqlServer,
+                InitialCatalog         = SqlDatabase,
+                TrustServerCertificate = true
+            };
             if (SqlWindowsAuth)
-                return $"Server={server};Database={SqlDatabase};Integrated Security=True;TrustServerCertificate=True;";
-            return $"Server={server};Database={SqlDatabase};User Id={SqlUsername};Password={SqlPassword};TrustServerCertificate=True;";
+            {
+                builder.IntegratedSecurity = true;
+            }
+            else
+            {
+                builder.UserID   = SqlUsername;
+                builder.Password = SqlPassword;
+            }
+            return builder.ConnectionString;
         }
     }
 }

@@ -66,8 +66,11 @@ public class GpoModule : IModule
         if (!File.Exists(lgpoExe))
             return (false, $"LGPO.exe not found at '{lgpoExe}'. Download from Microsoft Security Compliance Toolkit.");
 
+        // Escape single quotes in paths so they cannot break out of the PS single-quoted string context.
+        string safeExe  = lgpoExe.Replace("'", "''");
+        string safePath = lgpoFilePath.Replace("'", "''");
         var result = await _ps.RunInlineAsync(
-            $"& '{lgpoExe}' /t '{lgpoFilePath}' 2>&1", ct: ct);
+            $"& '{safeExe}' /t '{safePath}' 2>&1", ct: ct);
 
         return (result.Success, result.Success ? "LGPO applied successfully." : result.Error);
     }
@@ -75,14 +78,15 @@ public class GpoModule : IModule
     /// <summary>Generate a Group Policy report (RSoP) for the current machine.</summary>
     public async Task<string> GenerateGpoReportAsync(string outputPath, CancellationToken ct = default)
     {
+        string safePath = outputPath.Replace("'", "''");
         var result = await _ps.RunInlineAsync(
-            $"Get-GPResultantSetOfPolicy -ReportType Html -Path '{outputPath}' 2>&1", ct: ct);
+            $"Get-GPResultantSetOfPolicy -ReportType Html -Path '{safePath}' 2>&1", ct: ct);
 
         if (!result.Success)
         {
             // Fallback: use gpresult.exe
             var fallback = await _ps.RunInlineAsync(
-                $"gpresult /H '{outputPath}' /F 2>&1", ct: ct);
+                $"gpresult /H '{safePath}' /F 2>&1", ct: ct);
             return fallback.Success ? outputPath : string.Empty;
         }
         return outputPath;

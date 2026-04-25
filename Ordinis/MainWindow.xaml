@@ -107,7 +107,7 @@
                 <Border DockPanel.Dock="Bottom" Padding="16,12"
                         BorderThickness="0,1,0,0" BorderBrush="#1F2235">
                     <StackPanel>
-                        <TextBlock Text="Ordinis v1.0 · MIT"
+                        <TextBlock Text="Ordinis v1.2 · MIT"
                                    FontSize="10" Foreground="#4B5563"/>
                         <TextBlock Text="github.com/RohanFox"
                                    FontSize="10" Foreground="#4B5563"/>

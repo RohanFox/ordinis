@@ -117,12 +117,14 @@ public class WindowsModule : IModule
     {
         finding.CheckParams.TryGetValue("MethodArgument", out string? arg);
         if (string.IsNullOrEmpty(arg)) return "-NODATA-";
-
+        // Embed arg as a PS variable to avoid regex metacharacter injection.
+        string safeArg = arg.Replace("'", "''");
         var result = await _ps.RunInlineAsync(
+            $"$key = '{safeArg}'; " +
             $"$tmp = [System.IO.Path]::GetTempFileName(); " +
             $"secedit /export /cfg $tmp /areas SECURITYPOLICY | Out-Null; " +
             $"$content = Get-Content $tmp; Remove-Item $tmp -Force; " +
-            $"$line = $content | Where-Object {{ $_ -match '^{arg}' }}; " +
+            $"$line = $content | Where-Object {{ $_ -match ('^' + [Regex]::Escape($key)) }}; " +
             $"if ($line) {{ ($line -split '=')[1].Trim() }} else {{ '-NODATA-' }}", ct: ct);
 
         return result.Success ? result.Output.Trim() : "-NODATA-";
@@ -132,13 +134,14 @@ public class WindowsModule : IModule
     {
         finding.CheckParams.TryGetValue("MethodArgument", out string? sub);
         if (string.IsNullOrEmpty(sub)) return "-NODATA-";
-
+        string safeSub = sub.Replace("'", "''");
         var result = await _ps.RunInlineAsync(
+            $"$sub = '{safeSub}'; " +
             $"$tmp = [System.IO.Path]::GetTempFileName() + '.csv'; " +
             $"auditpol /backup /file:$tmp | Out-Null; " +
             $"$csv = Import-Csv $tmp; Remove-Item $tmp -Force; " +
-            $"$row = $csv | Where-Object {{ $_.Subcategory -eq '{sub}' }}; " +
-            $"if ($row) {{ '{sub}: ' + $row.'Inclusion Setting' }} else {{ '-NODATA-' }}", ct: ct);
+            $"$row = $csv | Where-Object {{ $_.Subcategory -eq $sub }}; " +
+            $"if ($row) {{ $sub + ': ' + $row.'Inclusion Setting' }} else {{ '-NODATA-' }}", ct: ct);
 
         return result.Success ? result.Output.Trim() : "-NODATA-";
     }
@@ -146,8 +149,11 @@ public class WindowsModule : IModule
     private async Task<string> ReadAccountPolicyAsync(Finding finding, CancellationToken ct)
     {
         finding.CheckParams.TryGetValue("MethodArgument", out string? arg);
+        if (string.IsNullOrEmpty(arg)) return "-NODATA-";
+        string safeArg = arg.Replace("'", "''");
         var result = await _ps.RunInlineAsync(
-            $"(net accounts | Where-Object {{ $_ -match '{arg}' }}) -replace '.*:','' | ForEach-Object {{ $_.Trim() }}", ct: ct);
+            $"$key = '{safeArg}'; " +
+            $"(net accounts | Where-Object {{ $_ -match [Regex]::Escape($key) }}) -replace '.*:','' | ForEach-Object {{ $_.Trim() }}", ct: ct);
         return result.Success ? result.Output.Trim() : "-NODATA-";
     }
 
@@ -173,6 +179,8 @@ public class WindowsModule : IModule
     private async Task<string> ReadMpStatusAsync(Finding finding, CancellationToken ct)
     {
         finding.CheckParams.TryGetValue("MethodArgument", out string? prop);
+        if (string.IsNullOrEmpty(prop) || !System.Text.RegularExpressions.Regex.IsMatch(prop, @"^[A-Za-z][A-Za-z0-9]*$"))
+            return "-NODATA-";
         var result = await _ps.RunInlineAsync(
             $"(Get-MpComputerStatus).{prop}", ct: ct);
         return result.Success ? result.Output.Trim() : "-NODATA-";
@@ -181,6 +189,8 @@ public class WindowsModule : IModule
     private async Task<string> ReadMpPreferenceAsync(Finding finding, CancellationToken ct)
     {
         finding.CheckParams.TryGetValue("MethodArgument", out string? prop);
+        if (string.IsNullOrEmpty(prop) || !System.Text.RegularExpressions.Regex.IsMatch(prop, @"^[A-Za-z][A-Za-z0-9]*$"))
+            return "-NODATA-";
         var result = await _ps.RunInlineAsync(
             $"(Get-MpPreference).{prop}", ct: ct);
         return result.Success ? result.Output.Trim() : "-NODATA-";
