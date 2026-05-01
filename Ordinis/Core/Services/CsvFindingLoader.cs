@@ -90,13 +90,27 @@ public class CsvFindingLoader
                     finding.CheckParams["RegistryPath"] = csv.GetField("RegistryPath") ?? string.Empty;
                     finding.CheckParams["RegistryItem"] = csv.GetField("RegistryItem") ?? string.Empty;
                 }
-                else if (method is "secedit" or "auditpol" or "accountpolicy" or "accesschk")
+                else if (method is "secedit" or "auditpol" or "accountpolicy" or "accesschk"
+                              or "localaccount" or "mpcomputerstatus" or "mppreference"
+                              or "windowsoptionalfeature" or "ps_script")
                 {
                     finding.CheckParams["MethodArgument"] = csv.GetField("MethodArgument") ?? string.Empty;
                 }
                 else if (method == "service")
                 {
                     finding.CheckParams["ServiceName"] = csv.GetField("MethodArgument") ?? string.Empty;
+                }
+                else if (method == "ciminstance")
+                {
+                    finding.CheckParams["ClassName"]    = csv.GetField("ClassName")    ?? string.Empty;
+                    finding.CheckParams["Namespace"]    = csv.GetField("Namespace")    ?? string.Empty;
+                    finding.CheckParams["Property"]     = csv.GetField("Property")     ?? string.Empty;
+                    finding.CheckParams["MethodArgument"] = csv.GetField("MethodArgument") ?? string.Empty;
+                }
+                else if (method == "registrylist")
+                {
+                    finding.CheckParams["RegistryPath"] = csv.GetField("RegistryPath") ?? string.Empty;
+                    finding.CheckParams["RegistryItem"] = csv.GetField("RegistryItem") ?? string.Empty;
                 }
 
                 finding.RemediationText = BuildRemediationText(finding);

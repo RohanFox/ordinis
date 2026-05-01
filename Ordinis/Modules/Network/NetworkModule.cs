@@ -22,22 +22,28 @@ public class NetworkModule : IModule
         finding.CheckParams.TryGetValue("Script", out string? script);
         if (string.IsNullOrEmpty(script))
         {
-            // Fallback to registry method
             await new Windows.WindowsModule(new CsvFindingLoader(), _ps)
                   .AuditFindingAsync(finding, target, ct);
             return;
         }
 
         var result = await _ps.RunInlineAsync(script, ct: ct);
-        finding.ActualValue = result.Success ? result.Output.Trim() : "-NODATA-";
-        finding.Status      = Windows.WindowsModule.Evaluate(finding.ActualValue, finding.ExpectedValue, finding.Operator)
-                              ? FindingStatus.Pass : FindingStatus.Fail;
-
-        if (!result.Success)
+        if (!result.Success && string.IsNullOrWhiteSpace(result.Output))
         {
             finding.Status       = FindingStatus.Error;
-            finding.ErrorMessage = result.Error;
+            finding.ErrorMessage = result.Error.Length > 200 ? result.Error[..200] : result.Error;
+            return;
         }
+
+        string actual = result.Output.Trim();
+        if (actual.Length == 0 && !string.IsNullOrEmpty(finding.DefaultValue))
+        {
+            finding.IsUsingDefault = true;
+            actual = finding.DefaultValue;
+        }
+        finding.ActualValue = actual;
+        finding.Status = Windows.WindowsModule.Evaluate(finding.ActualValue, finding.ExpectedValue, finding.Operator)
+                         ? FindingStatus.Pass : FindingStatus.Fail;
     }
 
     private static List<Finding> GetNetworkFindings() => new()
@@ -75,11 +81,14 @@ public class NetworkModule : IModule
             "Set-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' MinEncryptionLevel 3"),
 
         // ── LLMNR / NetBIOS / mDNS ────────────────────────────────────────────────
+        // Windows default when GPO key absent: LLMNR is enabled (1).
+        // Source: MS docs "Link-Local Multicast Name Resolution" — enabled by default until disabled via GPO.
         Net("NET-3.1", "LLMNR is disabled",
             "LLMNR can be abused for credential capture (Responder attacks).",
             "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient' -Name 'EnableMulticast' -ErrorAction SilentlyContinue).EnableMulticast",
             "=", "0", FindingSeverity.High,
-            "Set-ItemProperty 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient' EnableMulticast 0"),
+            "$p='HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient'; if (-not (Test-Path $p)) { New-Item $p -Force | Out-Null }; Set-ItemProperty $p EnableMulticast 0",
+            "1"),
 
         Net("NET-3.2", "NetBIOS over TCP/IP disabled on all adapters",
             "NetBIOS can be used for credential capture and name poisoning.",
@@ -87,11 +96,14 @@ public class NetworkModule : IModule
             "=", "0", FindingSeverity.High,
             "Set NetBIOS to Disabled on each adapter via Network Adapter Properties > TCP/IPv4 > Advanced > WINS tab."),
 
+        // Windows default when value absent: mDNS is enabled (1).
+        // Source: MS KB — EnableMDNS registry value controls mDNS; absent means enabled.
         Net("NET-3.3", "mDNS disabled",
             "mDNS (Bonjour/Zeroconf) can be used for network reconnaissance.",
             "(Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters' -Name 'EnableMDNS' -ErrorAction SilentlyContinue).EnableMDNS",
             "=", "0", FindingSeverity.Medium,
-            "Set-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters' EnableMDNS 0"),
+            "Set-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters' EnableMDNS 0",
+            "1"),
 
         Net("NET-3.4", "WPAD disabled (WinHttpAutoProxySvc stopped)",
             "WPAD can be exploited for MITM via spoofed proxy discovery.",
@@ -147,7 +159,7 @@ public class NetworkModule : IModule
     private static Finding Net(
         string id, string name, string description,
         string script, string op, string expected,
-        FindingSeverity severity, string remediation)
+        FindingSeverity severity, string remediation, string defaultValue = "")
     => new()
     {
         Id              = id,
@@ -165,6 +177,7 @@ public class NetworkModule : IModule
         Method          = "ps_script",
         CheckParams     = new() { ["Script"] = script },
         ExpectedValue   = expected,
+        DefaultValue    = defaultValue,
         Operator        = op,
         RemediationText = remediation,
         IsSafeToAutoFix = true

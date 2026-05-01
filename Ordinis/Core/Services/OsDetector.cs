@@ -96,6 +96,68 @@ $os = Get-CimInstance Win32_OperatingSystem  -ErrorAction SilentlyContinue
         catch { return OsProfile.Unknown; }
     }
 
+    public async Task<string> DetectAvAsync(CancellationToken ct = default)
+    {
+        const string script = @"
+$result = $null
+
+# 1. SecurityCenter2 WMI namespace — Desktop only (not available on Server SKUs)
+# Windows Defender is always registered here; prefer third-party products if also present.
+try {
+    $avList = Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction Stop
+    $av = $avList | Where-Object { $_.displayName -notmatch 'Windows Defender|Microsoft Defender' } | Select-Object -First 1
+    if (-not $av) { $av = $avList | Select-Object -First 1 }
+    if ($av) { $result = $av.displayName }
+} catch { }
+
+if ($result) { $result; return }
+
+# 2. Well-known EDR/AV service names
+$edrs = [ordered]@{
+    'CSAgent'           = 'CrowdStrike Falcon'
+    'SentinelAgent'     = 'SentinelOne'
+    'SentinelStaticEn'  = 'SentinelOne'
+    'BDAuxSrv'          = 'Bitdefender'
+    'bdredline'         = 'Bitdefender'
+    'EPSecurityService' = 'ESET'
+    'ekrn'              = 'ESET'
+    'TmListen'          = 'Trend Micro'
+    'ds_agent'          = 'Trend Micro Deep Security'
+    'kavfsslp'          = 'Kaspersky'
+    'AVP'               = 'Kaspersky'
+    'SAVService'        = 'Sophos'
+    'MBAMService'       = 'Malwarebytes'
+    'CylanceSvc'        = 'Cylance'
+    'cyserver'          = 'Cybereason'
+    'xagt'              = 'FireEye / Trellix'
+    'cb'                = 'Carbon Black'
+}
+foreach ($entry in $edrs.GetEnumerator()) {
+    if (Get-Service -Name $entry.Key -ErrorAction SilentlyContinue) {
+        $result = $entry.Value; break
+    }
+}
+
+if ($result) { $result; return }
+
+# 3. Windows Defender via Get-MpComputerStatus (works on Server if Defender feature installed)
+try {
+    $mp = Get-MpComputerStatus -ErrorAction Stop
+    if ($mp -and $mp.AMRunningMode -ne 'Not running') {
+        if ($mp.AMRunningMode -eq 'Passive Mode') { 'Windows Defender (Passive)' }
+        else { 'Windows Defender' }
+        return
+    }
+} catch { }
+
+'None detected'
+";
+        var res = await _ps.RunInlineAsync(script, ct: ct);
+        return res.Success && !string.IsNullOrWhiteSpace(res.Output)
+            ? res.Output.Trim()
+            : "Unknown";
+    }
+
     private sealed class OsProfileDto
     {
         public string Caption     { get; set; } = string.Empty;

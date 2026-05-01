@@ -97,37 +97,39 @@ public class FindingsViewModel : BaseViewModel
 
     private async Task FixSelectedAsync()
     {
-        if (Selected is null) return;
+        var finding = Selected;  // capture reference — Selected may change during any await
+        if (finding is null) return;
 
-        // Show confirmation dialog before touching anything
         string scriptsRoot = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scripts");
-        var dialog = new FixDialog(Selected, scriptsRoot)
-        {
-            Owner = Application.Current.MainWindow
-        };
-
+        var dialog = new FixDialog(finding, scriptsRoot) { Owner = Application.Current.MainWindow };
         if (dialog.ShowDialog() != true) return;
 
         _main.IsLoading  = true;
-        _main.StatusText = $"Applying fix: {Selected.Name}…";
+        _main.StatusText = $"Applying fix: {finding.Name}…";
 
         try
         {
-            var result = await _main.Remediation.ApplyFixAsync(Selected, _main.Target);
+            var result = await _main.Remediation.ApplyFixAsync(finding, _main.Target);
             if (result.Success)
             {
-                Selected.Status = FindingStatus.Pass;
-                if (result.NewActualValue is not null) Selected.ActualValue = result.NewActualValue;
+                finding.Status = FindingStatus.Pass;
+                if (result.NewActualValue is not null) finding.ActualValue = result.NewActualValue;
                 _main.Dashboard.Refresh();
                 Refresh();
-                _main.StatusText = $"Fix applied: {Selected.Name}";
+                _main.StatusText = $"Fix applied: {finding.Name}";
             }
             else
             {
                 MessageBox.Show($"Fix failed:\n{result.Message}", "Ordinis — Fix Error",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
-                _main.StatusText = $"Fix failed: {Selected.Name}";
+                _main.StatusText = $"Fix failed: {finding.Name}";
             }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error applying fix:\n{ex.Message}", "Ordinis — Fix Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            _main.StatusText = "Fix error.";
         }
         finally
         {

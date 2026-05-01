@@ -42,8 +42,22 @@ public class Finding : INotifyPropertyChanged
     public string ActualValue
     {
         get => _actualValue;
-        set { _actualValue = value; OnPropertyChanged(nameof(ActualValue)); OnPropertyChanged(nameof(FailureReason)); }
+        set { _actualValue = value; OnPropertyChanged(nameof(ActualValue)); OnPropertyChanged(nameof(ActualValueDisplay)); OnPropertyChanged(nameof(FailureReason)); }
     }
+
+    // True when ActualValue came from the OS/Windows default (key/policy not explicitly configured).
+    private bool _isUsingDefault;
+    public bool IsUsingDefault
+    {
+        get => _isUsingDefault;
+        set { _isUsingDefault = value; OnPropertyChanged(nameof(IsUsingDefault)); OnPropertyChanged(nameof(ActualValueDisplay)); }
+    }
+
+    // Display string for the actual value — appends "(Windows default)" when the value
+    // was inferred from the OS default rather than read from an explicit configuration.
+    public string ActualValueDisplay => IsUsingDefault && ActualValue != "-NODATA-"
+        ? (ActualValue.Length > 0 ? $"{ActualValue}  (Windows default)" : "(Windows default — not explicitly configured)")
+        : ActualValue;
 
     public string ErrorMessage { get; set; } = string.Empty;
 

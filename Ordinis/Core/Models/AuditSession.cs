@@ -47,6 +47,10 @@ public class AuditSession
         }
     }
 
+    public string OsCaption        { get; set; } = string.Empty;
+    public string AvProduct        { get; set; } = string.Empty;
+    public string DiagnosticLogPath { get; set; } = string.Empty;
+
     public string Duration => CompletedAt.HasValue
         ? (CompletedAt.Value - StartedAt).ToString(@"mm\:ss")
         : "Running…";

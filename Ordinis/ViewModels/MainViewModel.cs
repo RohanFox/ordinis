@@ -165,13 +165,17 @@ public class MainViewModel : BaseViewModel
             var profile   = SelectedProfile;
             var ct        = _cts.Token;
 
-            var osProfile = await new OsDetector(PsRunner).DetectAsync(ct);
+            var detector  = new OsDetector(PsRunner);
+            var osProfile = await detector.DetectAsync(ct);
+            var avProduct = await detector.DetectAvAsync(ct);
             StatusText = $"Detected: {osProfile.Caption} — loading finding lists…";
 
             var session = new AuditSession
             {
                 Target      = Target,
-                ProfileName = SelectedProfile.Name
+                ProfileName = SelectedProfile.Name,
+                OsCaption   = osProfile.Caption,
+                AvProduct   = avProduct
             };
 
             // Load all findings on a background thread — GetFindingsAsync for most modules
@@ -224,7 +228,8 @@ public class MainViewModel : BaseViewModel
             OnPropertyChanged(nameof(HasResults));
             Dashboard.Refresh();
             Findings.Refresh();
-            StatusText  = $"Scan complete — {Session.PassCount} passed, {Session.FailCount} failed";
+            string logFile = System.IO.Path.GetFileName(Session.DiagnosticLogPath);
+            StatusText  = $"Scan complete — {Session.PassCount} passed, {Session.FailCount} failed  |  Debug log: {logFile}";
             Progress    = 100;
             CurrentPage = Dashboard;
         }

@@ -35,7 +35,13 @@ public class LocalSecurityModule : IModule
             return;
         }
 
-        finding.ActualValue = result.Output.Trim();
+        string actual = result.Output.Trim();
+        if (actual.Length == 0 && !string.IsNullOrEmpty(finding.DefaultValue))
+        {
+            finding.IsUsingDefault = true;
+            actual = finding.DefaultValue;
+        }
+        finding.ActualValue = actual;
         finding.Status = WindowsModule.Evaluate(finding.ActualValue, finding.ExpectedValue, finding.Operator)
                          ? FindingStatus.Pass : FindingStatus.Fail;
     }
@@ -43,11 +49,14 @@ public class LocalSecurityModule : IModule
     private static List<Finding> GetChecks() => new()
     {
         // ── BitLocker ─────────────────────────────────────────────────────────────
+        // Wrapped in try-catch: Get-BitLockerVolume throws if the BitLocker feature is not installed
+        // (common on Server 2019 Core / without the feature). Returns a safe fallback string.
         Ls("LS-1.1", "BitLocker enabled on OS drive",
             "The system drive must be encrypted with BitLocker to protect data at rest from offline attacks (Evil Maid, cold boot).",
-            "(Get-BitLockerVolume -MountPoint $env:SystemDrive -ErrorAction SilentlyContinue).VolumeStatus",
+            "try { (Get-BitLockerVolume -MountPoint $env:SystemDrive -ErrorAction Stop).VolumeStatus } catch { 'NotInstalled' }",
             "Get-BitLockerVolume -MountPoint $env:SystemDrive",
             "=", "FullyEncrypted", FindingSeverity.Critical,
+            "",
             new[]
             {
                 "Enable-BitLocker -MountPoint $env:SystemDrive -EncryptionMethod XtsAes256 -TpmProtector",
@@ -57,9 +66,10 @@ public class LocalSecurityModule : IModule
 
         Ls("LS-1.2", "BitLocker uses TPM protector",
             "A TPM key protector ties encryption to hardware, preventing offline key extraction. Password-only BitLocker is vulnerable if the drive is removed.",
-            "((Get-BitLockerVolume -MountPoint $env:SystemDrive -ErrorAction SilentlyContinue).KeyProtector | Where-Object {$_.KeyProtectorType -eq 'Tpm' -or $_.KeyProtectorType -eq 'TpmPin'}).Count",
+            "try { ((Get-BitLockerVolume -MountPoint $env:SystemDrive -ErrorAction Stop).KeyProtector | Where-Object {$_.KeyProtectorType -eq 'Tpm' -or $_.KeyProtectorType -eq 'TpmPin'}).Count } catch { '0' }",
             "Get-BitLockerVolume | Select KeyProtector",
             ">=", "1", FindingSeverity.High,
+            "",
             new[]
             {
                 "Add-BitLockerKeyProtector -MountPoint $env:SystemDrive -TpmProtector",
@@ -72,6 +82,7 @@ public class LocalSecurityModule : IModule
             "$a = Get-LocalUser | Where-Object {$_.SID -like '*-500'}; if ($a -and $a.Enabled) { 'Enabled' } else { 'Disabled' }",
             "Get-LocalUser | Where SID -like '*-500'",
             "=", "Disabled", FindingSeverity.High,
+            "",
             new[]
             {
                 "Disable-LocalUser -SID (Get-LocalUser | Where-Object {$_.SID -like '*-500'}).SID",
@@ -84,22 +95,27 @@ public class LocalSecurityModule : IModule
             "(Get-LocalUser -Name 'Guest' -ErrorAction SilentlyContinue).Enabled",
             "Get-LocalUser -Name Guest",
             "=", "False", FindingSeverity.High,
+            "",
             new[]
             {
                 "Disable-LocalUser -Name 'Guest'",
                 "GPO: Computer Config > Windows Settings > Security Settings > Local Policies > Security Options > Accounts: Guest account status = Disabled"
-            }),
+            },
+            "Disable-LocalUser -Name 'Guest' -ErrorAction SilentlyContinue"),
 
+        // Windows default: 1 (Vista+). Prevents blank-password accounts from authenticating over network.
         Ls("LS-2.3", "No local accounts with blank passwords allowed over network",
             "LimitBlankPasswordUse=1 prevents accounts with blank passwords from being used for network authentication.",
             "(Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa' -Name LimitBlankPasswordUse -ErrorAction SilentlyContinue).LimitBlankPasswordUse",
             @"HKLM:\SYSTEM\CurrentControlSet\Control\Lsa :: LimitBlankPasswordUse",
             "=", "1", FindingSeverity.Critical,
+            "1",
             new[]
             {
                 "Set-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa' LimitBlankPasswordUse 1",
                 "GPO: Accounts: Limit local account use of blank passwords to console logon only = Enabled"
-            }),
+            },
+            "Set-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa' LimitBlankPasswordUse 1"),
 
         // ── LAPS ──────────────────────────────────────────────────────────────────
         Ls("LS-3.1", "LAPS (Local Administrator Password Solution) deployed",
@@ -107,6 +123,7 @@ public class LocalSecurityModule : IModule
             "(Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\\GPExtensions\\{D76B9641-3288-4f75-942D-087DE603E3EA}' -ErrorAction SilentlyContinue).ToString()",
             @"HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\GPExtensions\{D76B9641-3288-4f75-942D-087DE603E3EA}",
             "=", "True", FindingSeverity.Critical,
+            "",
             new[]
             {
                 "Install LAPS: Install-Module -Name LAPS from Microsoft or deploy the LAPS MSI",
@@ -117,9 +134,10 @@ public class LocalSecurityModule : IModule
         // ── AppLocker / WDAC ──────────────────────────────────────────────────────
         Ls("LS-4.1", "AppLocker or WDAC application control policy active",
             "Application allowlisting prevents execution of unauthorized code including ransomware, LOLBins, and attacker-dropped binaries. Critical defense-in-depth control.",
-            "$alp = (Get-AppLockerPolicy -Effective -ErrorAction SilentlyContinue).RuleCollections.Count; $wdac = (Get-CimInstance -ClassName Win32_DeviceGuard -Namespace root\\Microsoft\\Windows\\DeviceGuard -ErrorAction SilentlyContinue).CodeIntegrityPolicyEnforcementStatus; if ($alp -gt 0 -or $wdac -eq 2) { '1' } else { '0' }",
+            "$alp = (Get-AppLockerPolicy -Effective -ErrorAction SilentlyContinue).RuleCollections.Count; $wdac = try { (Get-CimInstance -ClassName Win32_DeviceGuard -Namespace root\\Microsoft\\Windows\\DeviceGuard -ErrorAction Stop).CodeIntegrityPolicyEnforcementStatus } catch { 0 }; if ($alp -gt 0 -or $wdac -eq 2) { '1' } else { '0' }",
             "Get-AppLockerPolicy -Effective | Select RuleCollections; Get-CimInstance Win32_DeviceGuard",
             "=", "1", FindingSeverity.High,
+            "",
             new[]
             {
                 "AppLocker: GPO > Computer Config > Windows Settings > Security Settings > Application Control Policies > AppLocker",
@@ -128,34 +146,44 @@ public class LocalSecurityModule : IModule
             }),
 
         // ── UAC ───────────────────────────────────────────────────────────────────
+        // Windows default: 1 (UAC enabled by default since Vista).
         Ls("LS-5.1", "UAC enabled (EnableLUA = 1)",
             "User Account Control restricts all users including admins to standard privileges by default. Disabling UAC removes this last line of defence against privilege escalation.",
             "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name EnableLUA -ErrorAction SilentlyContinue).EnableLUA",
             @"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System :: EnableLUA",
             "=", "1", FindingSeverity.Critical,
+            "1",
             new[]
             {
                 "Set-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' EnableLUA 1",
                 "GPO: Computer Config > Windows Settings > Security Settings > Local Policies > Security Options > User Account Control: Run all administrators in Admin Approval Mode = Enabled"
-            }),
+            },
+            "Set-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' EnableLUA 1",
+            requiresRestart: true),
 
+        // Windows default: 5 (Prompt for consent for non-Windows binaries) since Vista.
         Ls("LS-5.2", "UAC prompts for admin credentials (ConsentPromptBehaviorAdmin ≥ 1)",
             "ConsentPromptBehaviorAdmin=0 silently elevates without prompting — any process can gain SYSTEM silently. Must be ≥ 1 (prompt) or 2 (always prompt with credentials).",
             "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name ConsentPromptBehaviorAdmin -ErrorAction SilentlyContinue).ConsentPromptBehaviorAdmin",
             @"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System :: ConsentPromptBehaviorAdmin",
             ">=", "1", FindingSeverity.High,
+            "5",
             new[]
             {
                 "Set-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' ConsentPromptBehaviorAdmin 2  # 2 = prompt for credentials, 1 = prompt for consent",
                 "GPO: Computer Config > Security Options > User Account Control: Behavior of the elevation prompt for administrators"
-            }),
+            },
+            "Set-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' ConsentPromptBehaviorAdmin 2"),
 
         // ── Secure Boot ───────────────────────────────────────────────────────────
+        // Confirm-SecureBootUEFI throws a terminating error on non-UEFI / legacy BIOS systems
+        // even with -ErrorAction SilentlyContinue. Wrap in try-catch to return a safe value.
         Ls("LS-6.1", "Secure Boot is enabled",
             "Secure Boot ensures only signed bootloaders and OS kernels load. Without it, a bootkit can persist below the OS, survive reinstalls, and bypass all security software.",
-            "Confirm-SecureBootUEFI -ErrorAction SilentlyContinue",
+            "try { (Confirm-SecureBootUEFI -ErrorAction Stop).ToString() } catch { 'False' }",
             "Confirm-SecureBootUEFI",
             "=", "True", FindingSeverity.Critical,
+            "",
             new[]
             {
                 "Enable in UEFI/BIOS firmware settings: Security > Secure Boot = Enabled",
@@ -166,20 +194,23 @@ public class LocalSecurityModule : IModule
         // ── Scheduled Task hygiene ────────────────────────────────────────────────
         Ls("LS-7.1", "Task Scheduler history is enabled",
             "Task history is disabled by default but essential for detecting persistence mechanisms installed via scheduled tasks (common ransomware/APT technique).",
-            "$sched = New-Object -ComObject Schedule.Service; $sched.Connect(); $sched.GetFolder('\\').GetTask('\\') 2>$null; $logName='Microsoft-Windows-TaskScheduler/Operational'; (Get-WinEvent -ListLog $logName -ErrorAction SilentlyContinue).IsEnabled",
+            "$logName='Microsoft-Windows-TaskScheduler/Operational'; (Get-WinEvent -ListLog $logName -ErrorAction SilentlyContinue).IsEnabled",
             "Task Scheduler Operational Log",
             "=", "True", FindingSeverity.Medium,
+            "",
             new[]
             {
                 "wevtutil set-log 'Microsoft-Windows-TaskScheduler/Operational' /enabled:true",
                 "GPO: Computer Config > Admin Templates > Windows Components > Task Scheduler > Enable Task Scheduler history = Enabled"
-            }),
+            },
+            "wevtutil set-log 'Microsoft-Windows-TaskScheduler/Operational' /enabled:true"),
 
         Ls("LS-7.2", "No tasks running as SYSTEM from user-writable paths",
             "Scheduled tasks running as SYSTEM from writable directories (Temp, AppData, Downloads) indicate persistence or a misconfiguration attackers can hijack.",
             "(Get-ScheduledTask | Where-Object {$_.Principal.RunLevel -eq 'Highest' -or $_.Principal.UserId -eq 'SYSTEM'} | Where-Object {$_.Actions.Execute -match 'Temp|AppData|Downloads|Public'}).Count",
             "Get-ScheduledTask | Where Principal.UserId -eq SYSTEM",
             "=", "0", FindingSeverity.Critical,
+            "",
             new[]
             {
                 "Review and remove suspicious tasks: Get-ScheduledTask | Where-Object {$_.Principal.UserId -eq 'SYSTEM'} | Select TaskName,TaskPath,@{N='Exe';E={$_.Actions.Execute}}",
@@ -187,11 +218,13 @@ public class LocalSecurityModule : IModule
             }),
 
         // ── WMI Subscriptions (persistence detection) ────────────────────────────
+        // Windows default: 0 (no permanent WMI event subscriptions on a clean install).
         Ls("LS-8.1", "No permanent WMI event subscriptions (persistence backdoors)",
             "WMI event subscriptions (EventFilter + EventConsumer + FilterToConsumerBinding) are a fileless persistence mechanism used by APT groups. Legitimate software rarely uses them.",
             "(Get-WMIObject -Namespace root\\subscription -Class __FilterToConsumerBinding -ErrorAction SilentlyContinue).Count",
             "Get-WMIObject -Namespace root\\subscription -Class __FilterToConsumerBinding",
             "=", "0", FindingSeverity.Critical,
+            "0",
             new[]
             {
                 "List: Get-WMIObject -Namespace root\\subscription -Class __FilterToConsumerBinding | Select *",
@@ -204,7 +237,10 @@ public class LocalSecurityModule : IModule
         string id, string name, string description,
         string script, string checkSource,
         string op, string expected, FindingSeverity severity,
-        string[] steps)
+        string defaultValue,
+        string[] steps,
+        string remediationPs = "",
+        bool requiresRestart = false)
     => new()
     {
         Id               = id,
@@ -226,10 +262,13 @@ public class LocalSecurityModule : IModule
         Method           = "ps_script",
         CheckParams      = new() { ["Script"] = script },
         ExpectedValue    = expected,
+        DefaultValue     = defaultValue,
         Operator         = op,
         CheckSource      = checkSource,
         RemediationText  = steps[0],
+        RemediationScript = remediationPs,
         RemediationSteps = steps.ToList(),
-        IsSafeToAutoFix  = false
+        IsSafeToAutoFix  = !string.IsNullOrEmpty(remediationPs),
+        RequiresRestart  = requiresRestart
     };
 }

@@ -29,6 +29,8 @@ public class DashboardViewModel : BaseViewModel
         OnPropertyChanged(nameof(AdChecks));
         OnPropertyChanged(nameof(LastScanTime));
         OnPropertyChanged(nameof(ScanTarget));
+        OnPropertyChanged(nameof(OsName));
+        OnPropertyChanged(nameof(AvProduct));
         OnPropertyChanged(nameof(HasData));
     }
 
@@ -49,6 +51,8 @@ public class DashboardViewModel : BaseViewModel
         : "—";
 
     public string ScanTarget => _main.Session.Target.DisplayName;
+    public string OsName     => _main.Session.OsCaption.Length > 0 ? _main.Session.OsCaption : "—";
+    public string AvProduct  => _main.Session.AvProduct.Length  > 0 ? _main.Session.AvProduct  : "—";
 
     // Bar widths (0-200 pixels)
     private double MaxFail => Math.Max(1, new[] { CriticalCount, HighCount, MediumCount, LowCount }.Max());

@@ -42,7 +42,28 @@ public class RemediationEngine
             _              => null
         };
 
-        // 3. Apply fix via PowerShell script
+        // 3a. ps_script findings use RemediationScript (actual PS command) when set,
+        //     falling back to RemediationText for backward-compatible single-line commands.
+        if (finding.Method.Equals("ps_script", StringComparison.OrdinalIgnoreCase))
+        {
+            string command = !string.IsNullOrWhiteSpace(finding.RemediationScript)
+                ? finding.RemediationScript
+                : finding.RemediationText;
+
+            if (string.IsNullOrWhiteSpace(command))
+                return new RemediationResult { Success = false, Message = "No remediation command defined for this finding.", Backup = backupEntry };
+
+            var inline = await _ps.RunInlineAsync(command, ct: ct);
+            return new RemediationResult
+            {
+                Success        = inline.Success,
+                Message        = inline.Success ? "Fix applied successfully." : (inline.Error.Length > 0 ? inline.Error : "Command returned an error."),
+                Backup         = backupEntry,
+                NewActualValue = inline.Success ? finding.ExpectedValue : null
+            };
+        }
+
+        // 3b. All other methods use a dedicated PowerShell fix script.
         var (script, parameters) = BuildFixScript(finding, target);
         if (string.IsNullOrEmpty(script))
             return new RemediationResult { Success = false, Message = $"No fix script defined for method '{finding.Method}'." };

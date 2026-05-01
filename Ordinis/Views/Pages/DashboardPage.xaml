@@ -71,6 +71,32 @@
                         <TextBlock Text="Errors" Foreground="#6B7280" FontSize="13"/>
                     </StackPanel>
                 </Border>
+
+                <!-- System Info card -->
+                <Border Style="{StaticResource CardStyle}" Margin="0,0,16,16" MinWidth="200">
+                    <StackPanel>
+                        <TextBlock Text="SYSTEM INFO" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="#6B7280" Margin="0,0,0,10"/>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="50"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="OS" Foreground="#6B7280" FontSize="12" VerticalAlignment="Top"/>
+                            <TextBlock Grid.Column="1" Text="{Binding OsName, Mode=OneWay}"
+                                       Foreground="#D1D5DB" FontSize="12" TextWrapping="Wrap"/>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="50"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="AV/EDR" Foreground="#6B7280" FontSize="12" VerticalAlignment="Top"/>
+                            <TextBlock Grid.Column="1" Text="{Binding AvProduct, Mode=OneWay}"
+                                       Foreground="#D1D5DB" FontSize="12" TextWrapping="Wrap"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
             </WrapPanel>
 
             <!-- Severity breakdown + module breakdown side by side -->

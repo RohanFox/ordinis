@@ -16,10 +16,8 @@ public class AuditEngine
         CancellationToken ct = default)
     {
         session.IsRunning = true;
-
-        var enabledModules = _modules
-            .Where(m => session.Findings.Any(f => f.Module == m.Module))
-            .ToList();
+        using var logger = new DiagnosticLogger(session.Id.ToString("N")[..8]);
+        session.DiagnosticLogPath = logger.LogPath;
 
         var pending = session.Findings.Where(f => f.Status == FindingStatus.Pending).ToList();
         int total   = pending.Count;
@@ -32,7 +30,7 @@ public class AuditEngine
             var module = _modules.FirstOrDefault(m => m.Module == finding.Module);
             if (module is null)
             {
-                finding.Status = FindingStatus.Skipped;
+                finding.Status       = FindingStatus.Skipped;
                 finding.ErrorMessage = "No module registered for this finding type.";
             }
             else
@@ -49,6 +47,7 @@ public class AuditEngine
                 }
             }
 
+            logger.Log(finding);
             current++;
             progress?.Report((current, total, $"[{finding.ModuleLabel}] {finding.Name}"));
         }

@@ -35,7 +35,13 @@ public class AdModule : IModule
             return;
         }
 
-        finding.ActualValue = result.Output.Trim();
+        string actual = result.Output.Trim();
+        if (actual.Length == 0 && !string.IsNullOrEmpty(finding.DefaultValue))
+        {
+            finding.IsUsingDefault = true;
+            actual = finding.DefaultValue;
+        }
+        finding.ActualValue = actual;
         finding.Status      = WindowsModule.Evaluate(finding.ActualValue, finding.ExpectedValue, finding.Operator)
                               ? FindingStatus.Pass : FindingStatus.Fail;
     }
@@ -92,15 +98,16 @@ public class AdModule : IModule
 
         Ad("AD-2.3",  "Administrator account is renamed",
             "The built-in Administrator account should be renamed.",
-            "(Get-ADUser -Filter {SID -like '*-500'}).SamAccountName",
+            "$sid = (Get-ADDomain -ErrorAction SilentlyContinue).DomainSID.Value + '-500'; (Get-ADUser -Identity $sid -ErrorAction SilentlyContinue).SamAccountName",
             "!=", "Administrator", FindingSeverity.Medium,
             "Rename via ADUC or: Rename-ADObject -Identity (Get-ADUser Administrator).DistinguishedName -NewName 'NewName'"),
 
         Ad("AD-2.4",  "Guest account is disabled",
             "The built-in Guest account must be disabled.",
-            "(Get-ADUser -Filter {SID -like '*-501'}).Enabled",
+            "$sid = (Get-ADDomain -ErrorAction SilentlyContinue).DomainSID.Value + '-501'; $u = Get-ADUser -Identity $sid -Properties Enabled -ErrorAction SilentlyContinue; if ($u) { $u.Enabled } else { 'False' }",
             "=", "False", FindingSeverity.High,
-            "Disable-ADAccount -Identity (Get-ADUser -Filter {SID -like '*-501'})"),
+            "Disable-ADAccount -Identity (Get-ADUser -Filter {SID -like '*-501'})",
+            defaultValue: "False"),
 
         Ad("AD-3.1",  "Krbtgt password reset < 180 days ago",
             "The krbtgt account password should be rotated every 180 days.",
@@ -196,7 +203,8 @@ public class AdModule : IModule
     private static Finding Ad(
         string id, string name, string description,
         string script, string op, string expected,
-        FindingSeverity severity, string remediation)
+        FindingSeverity severity, string remediation,
+        string defaultValue = "")
     => new()
     {
         Id              = id,
@@ -213,6 +221,7 @@ public class AdModule : IModule
         Method          = "ad_script",
         CheckParams     = new() { ["Script"] = script },
         ExpectedValue   = expected,
+        DefaultValue    = defaultValue,
         Operator        = op,
         CheckSource     = "Active Directory PowerShell module",
         RemediationText = remediation,
