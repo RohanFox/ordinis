@@ -1,6 +1,6 @@
 # Ordinis — Microsoft Ecosystem Security Suite
 
-> Professional Windows hardening audit tool. Scan, detect, and remediate security misconfigurations across Windows OS, Active Directory, SQL Server, NTLM, Kerberos, and more — with per-finding failure explanations and multi-step remediation guidance.
+> Professional Windows hardening audit tool. Scan, detect, and remediate security misconfigurations across Windows OS, Active Directory, SQL Server, NTLM, Kerberos, and more — with per-finding failure context, remediation steps, automated backup, and detailed reporting.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20%7C%20Server%202019%2F2022-lightgrey)]()
@@ -11,7 +11,7 @@
 
 ## Overview
 
-Ordinis is a free, open-source desktop application for Windows security professionals, system administrators, and penetration testers. It runs CIS Benchmark, STIG, and custom security checks against the local machine or a remote host over WinRM, displays exactly **why each check failed**, and provides **multiple actionable remediation paths** (GPO, registry, PowerShell) for every finding.
+Ordinis is a free, open-source desktop application for Windows security professionals, system administrators, and penetration testers. It runs CIS Benchmark, STIG, and custom security checks against the full Microsoft ecosystem in a GUI-based workflow.
 
 Unlike raw PowerShell scripts or CSV-based tools, Ordinis provides:
 - Per-finding failure context: *"Found '3' — must be ≥ 5"*
@@ -72,7 +72,7 @@ The fix workflow always: **Validate → Backup → Confirm → Apply → Verify*
 - One-click restore from the Backups tab
 
 ### Remote Scanning via WinRM
-Scan any Windows machine over PowerShell Remoting. Methods that require local execution (`secedit`, `auditpol`, `accountpolicy`) are automatically skipped with an explanatory message rather than erroring silently.
+Scan any Windows machine over PowerShell Remoting. Methods that require local execution (`secedit`, `auditpol`, `accountpolicy`) are automatically skipped with an explanatory message rather than errored-out scan.
 
 ### Report Export
 - **HTML** — full interactive report with severity breakdown
@@ -216,7 +216,7 @@ winrm set winrm/config/service/auth @{Basic="true"}
 
 ## Disclaimer
 
-Ordinis is designed for **authorized use only** — auditing systems you own or have explicit written permission to scan. The remediation scripts modify security policy, registry settings, and Windows services. Always review changes before applying in production. Use the built-in backup feature; test on non-production systems first.
+Ordinis is designed for **authorized use only** — auditing systems you own or have explicit written permission to scan. The remediation scripts modify security policy, registry settings, and Windows services, which can cause irreparable damage to non-targeted systems if not handled with expertise.
 
 ---
 
@@ -225,6 +225,12 @@ Ordinis is designed for **authorized use only** — auditing systems you own or 
 MIT License — Copyright © 2026 [RohanFox](https://github.com/RohanFox)
 
 See [LICENSE](LICENSE) for full text.
+
+---
+
+## Acknowledgements
+
+Some modules and benchmarks sourced from https://github.com/0x6d69636b/windows_hardening (used under its license).
 
 ---
 
