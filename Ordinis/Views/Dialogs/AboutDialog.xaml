@@ -39,7 +39,7 @@
                 <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
             </Grid.RowDefinitions>
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Version" Foreground="#6B7280" FontSize="12"/>
-            <TextBlock Grid.Row="0" Grid.Column="1" Text="1.2.0" Foreground="#D1D5DB" FontSize="12"/>
+            <TextBlock Grid.Row="0" Grid.Column="1" Text="1.3.0" Foreground="#D1D5DB" FontSize="12"/>
             <TextBlock Grid.Row="1" Grid.Column="0" Text="License" Foreground="#6B7280" FontSize="12" Margin="0,6,0,0"/>
             <TextBlock Grid.Row="1" Grid.Column="1" Text="MIT — Free &amp; Open Source" Foreground="#D1D5DB" FontSize="12" Margin="0,6,0,0"/>
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Author" Foreground="#6B7280" FontSize="12" Margin="0,6,0,0"/>
