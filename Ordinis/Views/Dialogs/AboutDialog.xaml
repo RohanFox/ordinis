@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:gif="https://github.com/XamlAnimatedGif/XamlAnimatedGif"
+        xmlns:core="clr-namespace:Ordinis.Core"
         Title="About Ordinis"
         Width="480" Height="420"
         ResizeMode="NoResize"
@@ -39,7 +40,7 @@
                 <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
             </Grid.RowDefinitions>
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Version" Foreground="#6B7280" FontSize="12"/>
-            <TextBlock Grid.Row="0" Grid.Column="1" Text="1.3.0" Foreground="#D1D5DB" FontSize="12"/>
+            <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Static core:AppInfo.Version}" Foreground="#D1D5DB" FontSize="12"/>
             <TextBlock Grid.Row="1" Grid.Column="0" Text="License" Foreground="#6B7280" FontSize="12" Margin="0,6,0,0"/>
             <TextBlock Grid.Row="1" Grid.Column="1" Text="MIT — Free &amp; Open Source" Foreground="#D1D5DB" FontSize="12" Margin="0,6,0,0"/>
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Author" Foreground="#6B7280" FontSize="12" Margin="0,6,0,0"/>

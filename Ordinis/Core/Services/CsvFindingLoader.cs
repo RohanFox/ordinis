@@ -124,6 +124,7 @@ public class CsvFindingLoader
 
     private static FindingSeverity MapSeverity(string raw) => raw.ToLowerInvariant() switch
     {
+        "critical" => FindingSeverity.Critical,
         "high"     => FindingSeverity.High,
         "medium"   => FindingSeverity.Medium,
         "low"      => FindingSeverity.Low,

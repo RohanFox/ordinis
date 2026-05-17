@@ -160,7 +160,7 @@ public class ReportGenerator
 </tbody>
 </table>
 
-<div class=""footer"">Ordinis v1.2 &nbsp;·&nbsp; Free &amp; Open Source (MIT) &nbsp;·&nbsp; github.com/RohanFox</div>
+<div class=""footer"">Ordinis v{AppInfo.ShortVersion} &nbsp;·&nbsp; Free &amp; Open Source (MIT) &nbsp;·&nbsp; github.com/RohanFox</div>
 
 <script>
 function toggleRow(btn) {{

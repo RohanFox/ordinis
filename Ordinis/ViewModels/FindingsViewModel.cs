@@ -99,41 +99,61 @@ public class FindingsViewModel : BaseViewModel
     {
         var finding = Selected;  // capture reference — Selected may change during any await
         if (finding is null) return;
+        await FixFindingsAsync(new[] { finding });
+    }
+
+    // Applies fixes to the given findings. Every fix is gated by FixDialog — the user sees
+    // the before/after values, the backup notice and the fix script before anything is
+    // modified; cancelling the dialog skips that finding. After a successful apply the
+    // finding is re-audited so its status reflects the real system state, not an assumption
+    // that the script worked.
+    public async Task FixFindingsAsync(IReadOnlyList<Finding> findings)
+    {
+        var fixable = findings.Where(f => f.Status == FindingStatus.Fail && f.IsSafeToAutoFix).ToList();
+        if (fixable.Count == 0) return;
 
         string scriptsRoot = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scripts");
-        var dialog = new FixDialog(finding, scriptsRoot) { Owner = Application.Current.MainWindow };
-        if (dialog.ShowDialog() != true) return;
+        int applied = 0, failed = 0, skipped = 0;
 
-        _main.IsLoading  = true;
-        _main.StatusText = $"Applying fix: {finding.Name}…";
+        foreach (var finding in fixable)
+        {
+            var dialog = new FixDialog(finding, scriptsRoot) { Owner = Application.Current.MainWindow };
+            if (dialog.ShowDialog() != true) { skipped++; continue; }
 
-        try
-        {
-            var result = await _main.Remediation.ApplyFixAsync(finding, _main.Target);
-            if (result.Success)
+            _main.IsLoading  = true;
+            _main.StatusText = $"Applying fix: {finding.Name}…";
+
+            try
             {
-                finding.Status = FindingStatus.Pass;
-                if (result.NewActualValue is not null) finding.ActualValue = result.NewActualValue;
-                _main.Dashboard.Refresh();
-                Refresh();
-                _main.StatusText = $"Fix applied: {finding.Name}";
+                var result = await _main.Remediation.ApplyFixAsync(finding, _main.Target);
+                if (result.Success)
+                {
+                    // Verify — re-audit the finding rather than assuming the fix took effect.
+                    await _main.Audit.AuditSingleAsync(finding, _main.Target);
+                    if (finding.Status == FindingStatus.Pass) applied++;
+                    else                                      failed++;
+                }
+                else
+                {
+                    failed++;
+                    MessageBox.Show($"Fix failed:\n{result.Message}", "Ordinis — Fix Error",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                MessageBox.Show($"Fix failed:\n{result.Message}", "Ordinis — Fix Error",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                _main.StatusText = $"Fix failed: {finding.Name}";
+                failed++;
+                MessageBox.Show($"Error applying fix:\n{ex.Message}", "Ordinis — Fix Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                _main.IsLoading = false;
             }
         }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Error applying fix:\n{ex.Message}", "Ordinis — Fix Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-            _main.StatusText = "Fix error.";
-        }
-        finally
-        {
-            _main.IsLoading = false;
-        }
+
+        _main.Dashboard.Refresh();
+        Refresh();
+        _main.StatusText = $"Fix complete — {applied} verified, {failed} failed, {skipped} skipped.";
     }
 }

@@ -55,4 +55,34 @@ public class AuditEngine
         session.CompletedAt = DateTime.Now;
         session.IsRunning   = false;
     }
+
+    // Re-audits a single finding in place — used to verify that a fix actually took effect.
+    // Resets prior audit state so the result reflects the current system, not the last scan.
+    public async Task AuditSingleAsync(
+        Finding finding,
+        ScanTarget target,
+        CancellationToken ct = default)
+    {
+        var module = _modules.FirstOrDefault(m => m.Module == finding.Module);
+        if (module is null)
+        {
+            finding.Status       = FindingStatus.Skipped;
+            finding.ErrorMessage = "No module registered for this finding type.";
+            return;
+        }
+
+        finding.IsUsingDefault = false;
+        finding.ErrorMessage   = string.Empty;
+
+        try
+        {
+            await module.AuditFindingAsync(finding, target, ct);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            finding.Status       = FindingStatus.Error;
+            finding.ErrorMessage = ex.Message;
+        }
+    }
 }

@@ -5,6 +5,7 @@
         xmlns:controls="clr-namespace:Ordinis.Views.Controls"
         xmlns:pages="clr-namespace:Ordinis.Views.Pages"
         xmlns:vm="clr-namespace:Ordinis.ViewModels"
+        xmlns:core="clr-namespace:Ordinis.Core"
         Title="Ordinis — Microsoft Ecosystem Security Suite"
         Height="820" Width="1280" MinHeight="700" MinWidth="1050"
         Background="{StaticResource OrdinisBackground}"
@@ -107,7 +108,7 @@
                 <Border DockPanel.Dock="Bottom" Padding="16,12"
                         BorderThickness="0,1,0,0" BorderBrush="#1F2235">
                     <StackPanel>
-                        <TextBlock Text="Ordinis v1.2 · MIT"
+                        <TextBlock Text="{x:Static core:AppInfo.Edition}"
                                    FontSize="10" Foreground="#4B5563"/>
                         <TextBlock Text="github.com/RohanFox"
                                    FontSize="10" Foreground="#4B5563"/>

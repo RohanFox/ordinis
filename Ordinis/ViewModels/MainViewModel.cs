@@ -247,25 +247,13 @@ public class MainViewModel : BaseViewModel
         }
     }
 
+    // "Fix Selected" toolbar button — routes the batch through FindingsViewModel so every
+    // fix goes through the same FixDialog confirmation + verify path as a single-row fix.
     private async Task FixSelectedAsync()
     {
-        var failedSelected = Findings.SelectedFindings.Where(f => f.Status == FindingStatus.Fail).ToList();
-        if (failedSelected.Count == 0) return;
-
-        foreach (var f in failedSelected)
-        {
-            StatusText = $"Fixing: {f.Name}…";
-            var result = await Remediation.ApplyFixAsync(f, Target);
-            if (result.Success)
-            {
-                f.Status = FindingStatus.Pass;
-                if (result.NewActualValue is not null) f.ActualValue = result.NewActualValue;
-            }
-        }
-
-        Dashboard.Refresh();
-        Findings.Refresh();
-        StatusText = "Batch fix complete.";
+        var selected = Findings.SelectedFindings.ToList();
+        if (selected.Count == 0) return;
+        await Findings.FixFindingsAsync(selected);
     }
 
     public void CancelScan() => _cts?.Cancel();

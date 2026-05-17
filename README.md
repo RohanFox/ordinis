@@ -15,7 +15,7 @@ Ordinis is a free, open-source desktop application for Windows security professi
 
 Unlike raw PowerShell scripts or CSV-based tools, Ordinis provides:
 - Per-finding failure context: *"Found '3' — must be ≥ 5"*
-- Three remediation methods per check (GPO path, registry, PS one-liner)
+- Multiple remediation paths per check (GPO, registry, PowerShell) where available
 - Backup-before-fix with one-click restore
 - HTML, JSON, and CSV report export
 - GPO export (LGPO format) for batch policy application
@@ -26,18 +26,18 @@ Unlike raw PowerShell scripts or CSV-based tools, Ordinis provides:
 
 | Module | Checks | Benchmark | Key Areas |
 |--------|--------|-----------|-----------|
-| **Windows OS** | 200–330 | CIS L1/L2, STIG, BSI | Registry, secedit, auditpol, services, Defender, firewall — loaded from 189 HardeningKitty CSV lists |
+| **Windows OS** | 133 lists | CIS L1/L2, STIG, BSI | Registry, secedit, auditpol, services, Defender, firewall — loaded from 133 HardeningKitty CSV lists, de-duplicated and OS/profile-filtered at scan time |
 | **Active Directory** | 14 | CIS AD / PingCastle | Password policy, privileged accounts, stale objects, LDAP signing, trusts |
-| **Kerberos** | 7 | MITRE ATT&CK T1558 | AS-REP Roasting, Kerberoasting, unconstrained delegation, Protected Users, krbtgt age, DES disabled |
-| **NTLM / Credential** | 9 | CIS / STIG | LmCompatibilityLevel, NtlmMinClientSec, WDigest, LSA RunAsPPL, Credential Guard, anonymous access |
-| **Local Security** | 11 | CIS / STIG | BitLocker, LAPS, local accounts, AppLocker/WDAC, UAC, Secure Boot, WMI persistence |
-| **Logging & Audit** | 9 | CIS / NIST SP 800-92 | PowerShell Script Block/Module/Transcription logging, process creation cmdline, event log sizing, Advanced Audit Policy |
-| **Attack Surface** | 13 | CIS / NSA / CISA | Print Spooler, Remote Registry, unnecessary services, Defender ASR rules, tamper protection, Windows Update |
-| **Network** | 15 | CIS / STIG | SMBv1, SMB signing, RDP NLA, LLMNR, NetBIOS, mDNS, WPAD, IPv6 transition protocols, firewall |
+| **Kerberos** | 9 | MITRE ATT&CK T1558 | AS-REP Roasting, Kerberoasting, unconstrained delegation, Protected Users, krbtgt age, DES disabled |
+| **NTLM / Credential** | 10 | CIS / STIG | LmCompatibilityLevel, NtlmMinClientSec, WDigest, LSA RunAsPPL, Credential Guard, anonymous access |
+| **Local Security** | 13 | CIS / STIG | BitLocker, LAPS, local accounts, AppLocker/WDAC, UAC, Secure Boot, WMI persistence |
+| **Logging & Audit** | 13 | CIS / NIST SP 800-92 | PowerShell Script Block/Module/Transcription logging, process creation cmdline, event log sizing, Advanced Audit Policy |
+| **Attack Surface** | 14 | CIS / NSA / CISA | Print Spooler, Remote Registry, unnecessary services, Defender ASR rules, tamper protection, Windows Update |
+| **Network** | 16 | CIS / STIG | SMBv1, SMB signing, RDP NLA, LLMNR, NetBIOS, mDNS, WPAD, IPv6 transition protocols, firewall |
 | **SQL Server** | 22 | CIS SQL Server 2019/2022 | SA account, xp_cmdshell, surface area, auditing, TLS, agent account |
 | **GPO Manager** | — | — | Export findings as LGPO, apply LGPO files, RSoP report, list applied GPOs |
 
-**Total: 100+ built-in checks + 200–330 HardeningKitty Windows checks loaded at scan time**
+**Total: 111 purpose-built checks across 8 modules + 133 HardeningKitty CSV lists for the Windows OS module**
 
 ---
 
@@ -45,6 +45,7 @@ Unlike raw PowerShell scripts or CSV-based tools, Ordinis provides:
 
 ### Comprehensive Audit
 - Runs all modules in a single scan with live progress
+- Detects the host OS and installed AV/EDR product and shows both on the dashboard
 - Findings filtered by status (Pass/Fail/Error), severity (Critical → Info), and module
 - Full-text search across finding IDs, names, and categories
 
@@ -66,6 +67,7 @@ Each finding includes all remediation paths:
 
 ### Safe Remediation with Backup
 The fix workflow always: **Validate → Backup → Confirm → Apply → Verify**
+Every fix — single-row or batch — is confirmed in a dialog showing the before/after values and the exact script, then re-audited afterwards to confirm it took effect.
 - Registry keys backed up as `.reg` files
 - Security policy exported via `secedit /export`
 - Audit policy backed up via `auditpol /backup`
@@ -234,4 +236,4 @@ Some modules and benchmarks sourced from https://github.com/0x6d69636b/windows_h
 
 ---
 
-*Ordinis v1.0 · Free & Open Source (MIT) · [github.com/RohanFox](https://github.com/RohanFox)*
+*Ordinis v1.3.1 · Free & Open Source (MIT) · [github.com/RohanFox](https://github.com/RohanFox)*
