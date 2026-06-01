@@ -27,7 +27,7 @@ public class AuditEngine
         {
             ct.ThrowIfCancellationRequested();
 
-            var module = _modules.FirstOrDefault(m => m.Module == finding.Module);
+            var module = _modules.FirstOrDefault(m => m.Handles.Contains(finding.Module));
             if (module is null)
             {
                 finding.Status       = FindingStatus.Skipped;
@@ -63,7 +63,7 @@ public class AuditEngine
         ScanTarget target,
         CancellationToken ct = default)
     {
-        var module = _modules.FirstOrDefault(m => m.Module == finding.Module);
+        var module = _modules.FirstOrDefault(m => m.Handles.Contains(finding.Module));
         if (module is null)
         {
             finding.Status       = FindingStatus.Skipped;

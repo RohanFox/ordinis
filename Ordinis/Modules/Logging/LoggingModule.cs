@@ -46,82 +46,13 @@ public class LoggingModule : IModule
                          ? FindingStatus.Pass : FindingStatus.Fail;
     }
 
+    // The five PowerShell-logging / process-command-line registry checks (LOG-1.x, LOG-2.1)
+    // moved to Data/FindingLists/finding_list_ordinis_logging_machine.csv — single-value
+    // registry settings that audit via the registry method and gain a .reg backup before any
+    // fix. The event-log-sizing (Get-WinEvent) and Advanced Audit Policy (auditpol) checks stay
+    // here: they are PowerShell-logic checks a flat CSV row cannot express.
     private static List<Finding> GetChecks() => new()
     {
-        // ── PowerShell Logging ────────────────────────────────────────────────────
-        // All PS logging keys live under HKLM:\SOFTWARE\Policies\... (GPO path).
-        // These keys only exist when GPO is applied. Windows default when absent = 0 (disabled).
-        Log("LOG-1.1", "PowerShell Script Block Logging enabled",
-            "Script Block Logging records the full content of every PowerShell script block executed, including obfuscated/encoded commands. Essential for detecting LOLBin abuse, encoded payloads, and in-memory attacks.",
-            "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging' -Name EnableScriptBlockLogging -ErrorAction SilentlyContinue).EnableScriptBlockLogging",
-            @"HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging :: EnableScriptBlockLogging",
-            "=", "1", FindingSeverity.Critical,
-            "0",
-            new[]
-            {
-                "Registry: New-Item -Path 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging' -Force; Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging' -Name EnableScriptBlockLogging -Value 1",
-                "GPO: Computer Config > Admin Templates > Windows Components > Windows PowerShell > Turn on PowerShell Script Block Logging = Enabled",
-                "Events logged to: Microsoft-Windows-PowerShell/Operational (Event ID 4104)"
-            },
-            "$p='HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging'; if (-not (Test-Path $p)) { New-Item $p -Force | Out-Null }; Set-ItemProperty $p EnableScriptBlockLogging 1"),
-
-        Log("LOG-1.2", "PowerShell Module Logging enabled",
-            "Module Logging captures the pipeline execution details of every PowerShell module. Reveals exactly which commands and parameters were used, even without Script Block Logging.",
-            "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ModuleLogging' -Name EnableModuleLogging -ErrorAction SilentlyContinue).EnableModuleLogging",
-            @"HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging :: EnableModuleLogging",
-            "=", "1", FindingSeverity.High,
-            "0",
-            new[]
-            {
-                "Registry: New-Item -Path 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ModuleLogging' -Force; Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ModuleLogging' -Name EnableModuleLogging -Value 1",
-                "To log all modules, also set ModuleNames = * under the ModuleLogging key",
-                "GPO: Computer Config > Admin Templates > Windows Components > Windows PowerShell > Turn on Module Logging = Enabled, ModuleNames = *"
-            },
-            "$p='HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ModuleLogging'; if (-not (Test-Path $p)) { New-Item $p -Force | Out-Null }; Set-ItemProperty $p EnableModuleLogging 1"),
-
-        Log("LOG-1.3", "PowerShell Transcription logging enabled",
-            "Transcription writes a full record of each PowerShell session input/output to disk. Creates a persistent audit trail even if event logs are cleared.",
-            "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\Transcription' -Name EnableTranscripting -ErrorAction SilentlyContinue).EnableTranscripting",
-            @"HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription :: EnableTranscripting",
-            "=", "1", FindingSeverity.High,
-            "0",
-            new[]
-            {
-                "Registry: New-Item -Path 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\Transcription' -Force; Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\Transcription' -Name EnableTranscripting -Value 1",
-                "Set a transcript output directory: Set-ItemProperty ... -Name OutputDirectory -Value '\\\\SIEM\\PS-Transcripts'",
-                "GPO: Computer Config > Admin Templates > Windows Components > Windows PowerShell > Turn on PowerShell Transcription = Enabled"
-            },
-            "$p='HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\Transcription'; if (-not (Test-Path $p)) { New-Item $p -Force | Out-Null }; Set-ItemProperty $p EnableTranscripting 1"),
-
-        Log("LOG-1.4", "PowerShell Script Block Logging — suspicious activity logged",
-            "EnableScriptBlockInvocationLogging=1 also logs script blocks that execute at invocation time, not just definition time, capturing more attack activity.",
-            "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging' -Name EnableScriptBlockInvocationLogging -ErrorAction SilentlyContinue).EnableScriptBlockInvocationLogging",
-            @"HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging :: EnableScriptBlockInvocationLogging",
-            "=", "1", FindingSeverity.Medium,
-            "0",
-            new[]
-            {
-                "Registry: Set-ItemProperty 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging' EnableScriptBlockInvocationLogging 1",
-                "Must be set alongside EnableScriptBlockLogging = 1"
-            },
-            "$p='HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging'; if (-not (Test-Path $p)) { New-Item $p -Force | Out-Null }; Set-ItemProperty $p EnableScriptBlockInvocationLogging 1"),
-
-        // ── Process Creation Audit (Command Line) ─────────────────────────────────
-        // Windows default when Audit key absent: command line not captured (0).
-        Log("LOG-2.1", "Process creation command line captured in event logs",
-            "Without this, Event ID 4688 (Process Creation) logs only the executable name — not the arguments. Command-line capture reveals LOLBin abuse (e.g., 'cmd.exe /c whoami'), encoded commands, and lateral movement.",
-            "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\Audit' -Name ProcessCreationIncludeCmdLine_Enabled -ErrorAction SilentlyContinue).ProcessCreationIncludeCmdLine_Enabled",
-            @"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit :: ProcessCreationIncludeCmdLine_Enabled",
-            "=", "1", FindingSeverity.Critical,
-            "0",
-            new[]
-            {
-                "Registry: New-Item -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\Audit' -Force; Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\Audit' -Name ProcessCreationIncludeCmdLine_Enabled -Value 1",
-                "GPO: Computer Config > Admin Templates > System > Audit Process Creation > Include command line in process creation events = Enabled",
-                "Requires: Advanced Audit Policy 'Audit Process Creation' must be enabled (Success)"
-            },
-            "$p='HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\Audit'; if (-not (Test-Path $p)) { New-Item $p -Force | Out-Null }; Set-ItemProperty $p ProcessCreationIncludeCmdLine_Enabled 1"),
-
         // ── Event Log Sizing ──────────────────────────────────────────────────────
         Log("LOG-3.1", "Security event log size ≥ 196608 KB (192 MB)",
             "Default Security log size (20 MB) fills within hours during an attack. CISA recommends ≥ 1 GB for incident response viability. 192 MB is the CIS minimum. Logs overwritten before collection = blind spot.",

@@ -480,8 +480,10 @@ public class WindowsModule : IModule
     private async Task<string> ReadOptionalFeatureAsync(Finding finding, CancellationToken ct)
     {
         finding.CheckParams.TryGetValue("MethodArgument", out string? featureName);
+        if (string.IsNullOrEmpty(featureName)) return "-NODATA-";
+        string safeName = featureName.Replace("'", "''");
         var result = await _ps.RunInlineAsync(
-            $"(Get-WindowsOptionalFeature -Online -FeatureName '{featureName}').State", ct: ct);
+            $"(Get-WindowsOptionalFeature -Online -FeatureName '{safeName}').State", ct: ct);
         return result.Success ? result.Output.Trim() : "-NODATA-";
     }
 
@@ -582,6 +584,12 @@ public class WindowsModule : IModule
     private static bool MatchesProfile(string fileName, string profileName)
     {
         string f = fileName.ToLowerInvariant();
+
+        // Ordinis curated lists are the tool's own value-add, not benchmark-specific, so they
+        // run under every profile — otherwise a benchmark filter (e.g. "must contain cis")
+        // would silently exclude them.
+        if (f.Contains("ordinis")) return true;
+
         return profileName.ToLowerInvariant() switch
         {
             var p when p.Contains("cis level 1") => f.Contains("cis") && !f.Contains("stig") && !f.Contains("bsi"),

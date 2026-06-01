@@ -8,8 +8,9 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>Ordinis</AssemblyName>
     <RootNamespace>Ordinis</RootNamespace>
-    <Version>1.3.1</Version>
+    <Version>1.3.2</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\Ordinis.ico</ApplicationIcon>
     <Platforms>x64</Platforms>
   </PropertyGroup>
 
@@ -27,6 +28,7 @@
 
   <ItemGroup>
     <Resource Include="Assets\loading.gif" />
+    <Resource Include="Assets\Ordinis.ico" />
   </ItemGroup>
 
   <ItemGroup>

@@ -103,20 +103,6 @@ public class LocalSecurityModule : IModule
             },
             "Disable-LocalUser -Name 'Guest' -ErrorAction SilentlyContinue"),
 
-        // Windows default: 1 (Vista+). Prevents blank-password accounts from authenticating over network.
-        Ls("LS-2.3", "No local accounts with blank passwords allowed over network",
-            "LimitBlankPasswordUse=1 prevents accounts with blank passwords from being used for network authentication.",
-            "(Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa' -Name LimitBlankPasswordUse -ErrorAction SilentlyContinue).LimitBlankPasswordUse",
-            @"HKLM:\SYSTEM\CurrentControlSet\Control\Lsa :: LimitBlankPasswordUse",
-            "=", "1", FindingSeverity.Critical,
-            "1",
-            new[]
-            {
-                "Set-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa' LimitBlankPasswordUse 1",
-                "GPO: Accounts: Limit local account use of blank passwords to console logon only = Enabled"
-            },
-            "Set-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa' LimitBlankPasswordUse 1"),
-
         // ── LAPS ──────────────────────────────────────────────────────────────────
         Ls("LS-3.1", "LAPS (Local Administrator Password Solution) deployed",
             "LAPS rotates the local admin password per machine and stores it in AD/Azure AD. Without it, all machines share the same local admin password — compromise one, compromise all (lateral movement via pass-the-hash).",
@@ -144,36 +130,6 @@ public class LocalSecurityModule : IModule
                 "WDAC: New-CIPolicy -Level Publisher -FilePath policy.xml; ConvertFrom-CIPolicy policy.xml policy.bin; Copy to C:\\Windows\\System32\\CodeIntegrity\\",
                 "Start with Audit mode before switching to Enforce to identify legitimate binaries"
             }),
-
-        // ── UAC ───────────────────────────────────────────────────────────────────
-        // Windows default: 1 (UAC enabled by default since Vista).
-        Ls("LS-5.1", "UAC enabled (EnableLUA = 1)",
-            "User Account Control restricts all users including admins to standard privileges by default. Disabling UAC removes this last line of defence against privilege escalation.",
-            "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name EnableLUA -ErrorAction SilentlyContinue).EnableLUA",
-            @"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System :: EnableLUA",
-            "=", "1", FindingSeverity.Critical,
-            "1",
-            new[]
-            {
-                "Set-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' EnableLUA 1",
-                "GPO: Computer Config > Windows Settings > Security Settings > Local Policies > Security Options > User Account Control: Run all administrators in Admin Approval Mode = Enabled"
-            },
-            "Set-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' EnableLUA 1",
-            requiresRestart: true),
-
-        // Windows default: 5 (Prompt for consent for non-Windows binaries) since Vista.
-        Ls("LS-5.2", "UAC prompts for admin credentials (ConsentPromptBehaviorAdmin ≥ 1)",
-            "ConsentPromptBehaviorAdmin=0 silently elevates without prompting — any process can gain SYSTEM silently. Must be ≥ 1 (prompt) or 2 (always prompt with credentials).",
-            "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name ConsentPromptBehaviorAdmin -ErrorAction SilentlyContinue).ConsentPromptBehaviorAdmin",
-            @"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System :: ConsentPromptBehaviorAdmin",
-            ">=", "1", FindingSeverity.High,
-            "5",
-            new[]
-            {
-                "Set-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' ConsentPromptBehaviorAdmin 2  # 2 = prompt for credentials, 1 = prompt for consent",
-                "GPO: Computer Config > Security Options > User Account Control: Behavior of the elevation prompt for administrators"
-            },
-            "Set-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' ConsentPromptBehaviorAdmin 2"),
 
         // ── Secure Boot ───────────────────────────────────────────────────────────
         // Confirm-SecureBootUEFI throws a terminating error on non-UEFI / legacy BIOS systems

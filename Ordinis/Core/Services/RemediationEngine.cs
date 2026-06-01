@@ -31,9 +31,14 @@ public class RemediationEngine
         if (!validation.valid)
             return new RemediationResult { Success = false, Message = validation.reason };
 
-        // 2. Backup
-        BackupEntry? backupEntry = null;
-        backupEntry = finding.Method.ToLowerInvariant() switch
+        // 2. Backup — backup-first is the project's core safety guarantee, keyed on the structured
+        //    method. A single registry setting must therefore use the "registry" method (not
+        //    ps_script) so its key is exported to .reg before the fix; this is why the migrated
+        //    NTLM/Logging/LocalSecurity registry checks now live in the curated CSV lists rather
+        //    than as inline scripts. ps_script is deliberately absent here: its findings carry no
+        //    structured registry target, so a registry backup cannot be taken — surfacing that as
+        //    null is honest, where pretending one was taken would not be.
+        BackupEntry? backupEntry = finding.Method.ToLowerInvariant() switch
         {
             "registry"     => await _backup.BackupRegistryKeyAsync(finding, ct),
             "secedit"      => await _backup.BackupSecurityPolicyAsync(ct),
@@ -94,13 +99,10 @@ public class RemediationEngine
 
     private static (bool valid, string reason) PreValidate(Finding finding)
     {
-        // Safety checks before applying any fix
+        // Safety checks before applying any fix. SQL findings are all IsSafeToAutoFix=false and
+        // stop here — their remediation is manual by design (a change can break a live app).
         if (!finding.IsSafeToAutoFix)
             return (false, "This finding is marked as not safe for automatic remediation. Apply manually.");
-
-        // Don't touch SA account if it's the only sysadmin
-        if (finding.Id.StartsWith("SQL-2.1") || finding.Id.StartsWith("SQL-2.2"))
-            return (true, string.Empty); // SQL module handles its own validation
 
         return (true, string.Empty);
     }
@@ -136,11 +138,6 @@ public class RemediationEngine
             {
                 ["Privilege"] = p.GetValueOrDefault("MethodArgument", ""),
                 ["Accounts"]  = finding.ExpectedValue
-            }),
-            "ipv6adapter" => ("Fix/Configure-IPv6.ps1", new()
-            {
-                ["AdapterName"] = p.GetValueOrDefault("AdapterName", "*"),
-                ["Action"]      = finding.ExpectedValue
             }),
             _ => (string.Empty, new())
         };

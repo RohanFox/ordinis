@@ -12,6 +12,10 @@ public class NetworkModule : IModule
     public string DisplayName    => "Network & IPv6";
     public string Description    => "SMB, RDP, LLMNR, NetBIOS, IPv6 adapter/protocol checks and anomaly detection";
 
+    // NET-4.x findings are tagged IPv6; this module audits both.
+    public IReadOnlySet<FindingModule> Handles { get; } =
+        new HashSet<FindingModule> { FindingModule.Network, FindingModule.IPv6 };
+
     public NetworkModule(PowerShellRunner ps) { _ps = ps; }
 
     public Task<List<Finding>> GetFindingsAsync(ScanProfile profile, CancellationToken ct = default)

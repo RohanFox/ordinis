@@ -7,6 +7,7 @@
         xmlns:vm="clr-namespace:Ordinis.ViewModels"
         xmlns:core="clr-namespace:Ordinis.Core"
         Title="Ordinis — Microsoft Ecosystem Security Suite"
+        Icon="Assets/Ordinis.ico"
         Height="820" Width="1280" MinHeight="700" MinWidth="1050"
         Background="{StaticResource OrdinisBackground}"
         TextElement.Foreground="{DynamicResource MaterialDesignBody}"

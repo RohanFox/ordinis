@@ -65,55 +65,84 @@ public class CsvFindingLoader
             csv.Read();
             csv.ReadHeader();
 
+            // Read by header name only when the column exists — GetField on an absent header
+            // throws. This lets the curated Ordinis lists carry extra columns (Module,
+            // Rationale, Remediation, RequiresRestart) while the 132 HardeningKitty lists,
+            // which lack them, parse exactly as before.
+            var headers = new HashSet<string>(csv.HeaderRecord ?? Array.Empty<string>(),
+                                              StringComparer.OrdinalIgnoreCase);
+            string? Field(string name) => headers.Contains(name) ? csv.GetField(name) : null;
+
             while (csv.Read())
             {
+                string rawId = Field("ID") ?? "0";
+
+                // A non-empty Module column marks an Ordinis curated list: keep the native ID
+                // (NTLM-2.1) and its module so it shows and dispatches under that module, and
+                // read the richer guidance columns. Standard lists have no Module column and
+                // stay WIN-prefixed under the Windows module — unchanged behaviour.
+                string? moduleField = Field("Module");
+                bool    isCurated   = !string.IsNullOrWhiteSpace(moduleField);
+
                 var finding = new Finding
                 {
-                    Id             = $"WIN-{csv.GetField("ID") ?? "0"}",
-                    Module         = FindingModule.Windows,
-                    Category       = csv.GetField("Category") ?? string.Empty,
-                    Name           = csv.GetField("Name") ?? string.Empty,
-                    Severity       = MapSeverity(csv.GetField("Severity") ?? "Low"),
-                    Benchmark      = DetectBenchmark(fileName),
-                    BenchmarkRef   = csv.GetField("ID") ?? string.Empty,
-                    Method         = csv.GetField("Method") ?? string.Empty,
-                    ExpectedValue  = csv.GetField("RecommendedValue") ?? string.Empty,
-                    DefaultValue   = csv.GetField("DefaultValue") ?? string.Empty,
-                    Operator       = csv.GetField("Operator") ?? "=",
-                    BackupKey      = csv.GetField("RegistryPath") ?? string.Empty
+                    Id             = isCurated ? rawId : $"WIN-{rawId}",
+                    Module         = isCurated ? MapModule(moduleField!) : FindingModule.Windows,
+                    Category       = Field("Category") ?? string.Empty,
+                    Name           = Field("Name") ?? string.Empty,
+                    Description    = Field("Description") ?? string.Empty,
+                    Rationale      = Field("Rationale") ?? string.Empty,
+                    Severity       = MapSeverity(Field("Severity") ?? "Low"),
+                    Benchmark      = isCurated ? "Ordinis" : DetectBenchmark(fileName),
+                    BenchmarkRef   = rawId,
+                    Method         = Field("Method") ?? string.Empty,
+                    ExpectedValue  = Field("RecommendedValue") ?? string.Empty,
+                    DefaultValue   = Field("DefaultValue") ?? string.Empty,
+                    Operator       = Field("Operator") ?? "=",
+                    BackupKey      = Field("RegistryPath") ?? string.Empty,
+                    RequiresRestart = string.Equals(Field("RequiresRestart"), "true", StringComparison.OrdinalIgnoreCase)
                 };
 
                 // Populate check params based on method
                 string method = finding.Method.ToLowerInvariant();
                 if (method == "registry")
                 {
-                    finding.CheckParams["RegistryPath"] = csv.GetField("RegistryPath") ?? string.Empty;
-                    finding.CheckParams["RegistryItem"] = csv.GetField("RegistryItem") ?? string.Empty;
+                    finding.CheckParams["RegistryPath"] = Field("RegistryPath") ?? string.Empty;
+                    finding.CheckParams["RegistryItem"] = Field("RegistryItem") ?? string.Empty;
                 }
                 else if (method is "secedit" or "auditpol" or "accountpolicy" or "accesschk"
                               or "localaccount" or "mpcomputerstatus" or "mppreference"
+                              or "mppreferenceasr" or "mppreferenceexclusion" or "bitlockervolume"
                               or "windowsoptionalfeature" or "ps_script")
                 {
-                    finding.CheckParams["MethodArgument"] = csv.GetField("MethodArgument") ?? string.Empty;
+                    // ASR rules carry their GUID, exclusion/bitlocker their property name, all in
+                    // MethodArgument — without this, ~650 ASR/Defender/BitLocker rows in the CIS
+                    // lists read an empty argument and fail as -NODATA-.
+                    finding.CheckParams["MethodArgument"] = Field("MethodArgument") ?? string.Empty;
                 }
                 else if (method == "service")
                 {
-                    finding.CheckParams["ServiceName"] = csv.GetField("MethodArgument") ?? string.Empty;
+                    finding.CheckParams["ServiceName"] = Field("MethodArgument") ?? string.Empty;
                 }
                 else if (method == "ciminstance")
                 {
-                    finding.CheckParams["ClassName"]    = csv.GetField("ClassName")    ?? string.Empty;
-                    finding.CheckParams["Namespace"]    = csv.GetField("Namespace")    ?? string.Empty;
-                    finding.CheckParams["Property"]     = csv.GetField("Property")     ?? string.Empty;
-                    finding.CheckParams["MethodArgument"] = csv.GetField("MethodArgument") ?? string.Empty;
+                    finding.CheckParams["ClassName"]    = Field("ClassName")    ?? string.Empty;
+                    finding.CheckParams["Namespace"]    = Field("Namespace")    ?? string.Empty;
+                    finding.CheckParams["Property"]     = Field("Property")     ?? string.Empty;
+                    finding.CheckParams["MethodArgument"] = Field("MethodArgument") ?? string.Empty;
                 }
                 else if (method == "registrylist")
                 {
-                    finding.CheckParams["RegistryPath"] = csv.GetField("RegistryPath") ?? string.Empty;
-                    finding.CheckParams["RegistryItem"] = csv.GetField("RegistryItem") ?? string.Empty;
+                    finding.CheckParams["RegistryPath"] = Field("RegistryPath") ?? string.Empty;
+                    finding.CheckParams["RegistryItem"] = Field("RegistryItem") ?? string.Empty;
                 }
 
-                finding.RemediationText = BuildRemediationText(finding);
+                // Curated lists may carry hand-written remediation guidance; fall back to the
+                // generated "Set X to Y" text when the column is absent or empty.
+                string? remediation = Field("Remediation");
+                finding.RemediationText = !string.IsNullOrWhiteSpace(remediation)
+                    ? remediation
+                    : BuildRemediationText(finding);
                 findings.Add(finding);
             }
         }
@@ -121,6 +150,19 @@ public class CsvFindingLoader
 
         return findings;
     }
+
+    // Maps the curated-list Module column to the enum. Only the modules whose checks are
+    // declarative enough to live in a CSV are listed; anything else falls back to Windows.
+    private static FindingModule MapModule(string raw) => raw.Trim().ToLowerInvariant() switch
+    {
+        "ntlm"          => FindingModule.NTLM,
+        "localsecurity" => FindingModule.LocalSecurity,
+        "logging"       => FindingModule.Logging,
+        "attacksurface" => FindingModule.AttackSurface,
+        "network"       => FindingModule.Network,
+        "ipv6"          => FindingModule.IPv6,
+        _               => FindingModule.Windows
+    };
 
     private static FindingSeverity MapSeverity(string raw) => raw.ToLowerInvariant() switch
     {

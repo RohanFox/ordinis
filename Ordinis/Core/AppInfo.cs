@@ -4,7 +4,7 @@ namespace Ordinis.Core;
 // On release, bump Version here and the <Version> element in Ordinis.csproj.
 public static class AppInfo
 {
-    public const string Version = "1.3.1";
+    public const string Version = "1.3.2";
 
     // "1.3.0" → "1.3" — short form used in the sidebar and report footers.
     public static string ShortVersion => Version[..Version.LastIndexOf('.')];

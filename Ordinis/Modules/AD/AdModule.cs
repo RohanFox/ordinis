@@ -13,6 +13,10 @@ public class AdModule : IModule
     public string DisplayName    => "Active Directory";
     public string Description    => "PingCastle-style AD health check — password policy, privileged accounts, stale objects, trusts";
 
+    // KRB-* findings are tagged Kerberos; this module audits both.
+    public IReadOnlySet<FindingModule> Handles { get; } =
+        new HashSet<FindingModule> { FindingModule.ActiveDirectory, FindingModule.Kerberos };
+
     public AdModule(PowerShellRunner ps) { _ps = ps; }
 
     public Task<List<Finding>> GetFindingsAsync(ScanProfile profile, CancellationToken ct = default)

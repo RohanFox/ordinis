@@ -148,5 +148,8 @@ public class PowerShellRunner
                 result.Success ? string.Empty : result.Error);
     }
 
-    private static string EscapePs(string value) => value.Replace("'", "''").Replace("\"", "`\"");
+    // Escapes a value for a single-quoted PowerShell string: double the quote. Callers always
+    // wrap the result in '...', so a literal " needs no escaping — the previous `" rewrite
+    // corrupted any password/value containing a double-quote.
+    private static string EscapePs(string value) => value.Replace("'", "''");
 }
